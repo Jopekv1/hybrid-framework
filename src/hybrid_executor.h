@@ -3,7 +3,7 @@
 //TODO:
 //wyliczac chunk_size na podstawie ilosci threadow/pamieci gpu
 #define HYBRID_FOR(init,condition,increment)														\
-		int j, id, chunk_size = 1000;																\
+		int j, id, chunk_size = 10000;																\
 		__pragma(omp parallel default(shared) private(j,id) )										\
 		__pragma(omp for schedule(dynamic, chunk_size))												\
 		for(init;condition;increment)		
