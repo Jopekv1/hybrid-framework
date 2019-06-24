@@ -16,14 +16,9 @@
 #define HYBRID_EXECUTE(kernel, ...)																	\
 		id = omp_get_thread_num();																	\
 		if(id == 0) {																				\
-			if(i % chunk_size == 0) {																\
-				kernel(i, chunk_size, __VA_ARGS__);													\
+			if(j % chunk_size == 0) {																\
+				kernel<<<chunk_size / 1000, 1000>>>(__VA_ARGS__);									\
+				cudaDeviceSynchronize();															\
 			}																						\
-/*workaround na to ze nie moge zrobic i+=chunk_size */ 												\
-/*zapuscic obliczenia na GPU, niech petla leci dalej i w ostatniej iteracji zsynchronizowac */		\
-			if(i % chunk_size == chunk_size - 1) {													\
-				/*cudaDeviceSynchronize czy jakos tak xD */											\
-			}																						\
-			kernel(i, chunk_size, __VA_ARGS__);														\
 			continue;																				\
 		}																							

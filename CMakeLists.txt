@@ -2,12 +2,13 @@ cmake_minimum_required(VERSION 3.14)
 project(hpdp)
 
 set(CMAKE_CXX_STANDARD 17)
-
+enable_language(CUDA)
 include_directories(src)
 
 file(GLOB SOURCES
     "src/*.h"
     "src/*.cpp"
+    "src/*.cu"
 )
 
 add_executable(hpdp ${SOURCES})
