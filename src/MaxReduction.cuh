@@ -22,10 +22,10 @@ public:
 
 
 template<typename Type>
-typename MaxReduction<Type>::DataBlock MaxReduction<Type>::runCPU(DataBlock data)
+auto MaxReduction<Type>::runCPU(DataBlock data) -> DataBlock
 {
-	float* ret = new float; //move to engine
-	ret = std::max_element(data.first, data.first + data.second);
+	auto* ret = new float; // move to engine
+	*ret = *std::max_element(data.first, data.first + data.second);
 	return DataBlock(ret, 1);
 }
 
@@ -41,7 +41,7 @@ __device__ void warpReduce(volatile float* sdata, unsigned int tid) {
 
 template <unsigned int blockSize, typename Type, typename = std::enable_if<std::is_same<Type, float>::value, int>>
 __global__ void reduce(float* g_idata, float* g_odata, unsigned int n) {
-	__shared__ float sdata[blockSize];
+	extern __shared__ float sdata[];
 	unsigned int tid = threadIdx.x;
 	unsigned int i = blockIdx.x * (blockSize * 2) + tid;
 	unsigned int gridSize = blockSize * 2 * gridDim.x;
@@ -56,7 +56,7 @@ __global__ void reduce(float* g_idata, float* g_odata, unsigned int n) {
 }
 
 template<typename Type>
-typename MaxReduction<Type>::DataBlock MaxReduction<Type>::runGPU(DataBlock data)
+auto MaxReduction<Type>::runGPU(DataBlock data) -> DataBlock
 {
 	const int threads = 512;
 	unsigned int numPerThread = round(log2(data.second));
@@ -74,30 +74,27 @@ typename MaxReduction<Type>::DataBlock MaxReduction<Type>::runGPU(DataBlock data
 	switch (threads)
 	{
 	case 512:
-		reduce<512, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<512, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 256:
-		reduce<256, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<256, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 128:
-		reduce<128, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<128, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 64:
-		reduce< 64, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce< 64, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 32:
-		reduce< 32, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce< 32, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 16:
-		reduce< 16, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce< 16, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 8:
-		reduce<  8, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<  8, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 4:
-		reduce<  4, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<  4, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 2:
-		reduce<  2, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<  2, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	case 1:
-		reduce<  1, Type> << <dimGrid, dimBlock >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
+		reduce<  1, Type> << <dimGrid, dimBlock, sharedMemSize >> > (data.first, outData, numPerThread * threads * 2 * outSize); break;
 	}
 	cudaDeviceSynchronize();
-
-	for (int i = 0; i < outSize; ++i)
-		printf("%f\n", outData[i]);
 
 	return DataBlock(outData, outSize);
 }
@@ -109,7 +106,7 @@ bool MaxReduction<Type>::isBase(DataBlock data)
 }
 
 template <typename Type>
-typename MaxReduction<Type>::DataBlock MaxReduction<Type>::merge(std::vector<DataBlock> data)
+auto MaxReduction<Type>::merge(std::vector<DataBlock> data) -> DataBlock
 {
 	Type* max = new Type; //move to engine
 	*max = std::numeric_limits<Type>::min();

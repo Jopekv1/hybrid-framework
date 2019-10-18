@@ -1,18 +1,17 @@
 #pragma once
-#include <utility>
 #include "Algorithm.h"
 
 template<typename Type>
 class PassManager
 {
 public:
-	using DataBlock = std::pair<Type*, std::uint64_t>;
+	using DataBlock = typename Algorithm<Type>::DataBlock;
 	
-	PassManager() = default;;
-	~PassManager() = default;;
+	PassManager(Algorithm<Type> algorithm/*, engine*/) : algorithm(algorithm) {}
+	~PassManager() = default;
 
-	DataBlock run(DataBlock data, Algorithm<Type> algorithm) {};
+	DataBlock run(DataBlock data);
 
 private:
-
+	const Algorithm<Type> algorithm;
 };
