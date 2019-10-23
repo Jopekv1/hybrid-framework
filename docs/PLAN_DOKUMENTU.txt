@@ -1,0 +1,34 @@
+ROZDZIAL 1: WPROWADZENIE 3-5 stron
+
+-temat, abstrakt
+-spis tresci
+-kto za co odpowiada, robil
+
+ROZDZIAL 2: STATE OF ACT 20-25 stron
+	
+-glownie opis naszego problemu oraz istniejacych roziwazan 
+-opis architektury GPU i CPU - czym sie roznia
+-po krotce opis technologii jakich uzywamy
+
+ROZDZIAL 3: PROPOZYCJA ROZWIAZANIA 10 stron
+
+-jak chcemy rozwiazac ten problemu
+-dlaczego jest to lepsze niz te metody z poprzedniego rozdzialu
+
+ROZDZIAL 4: PROJEKT I IMPLEMENTACJA 10-20 stron 
+
+-cale to gowno z IO, RPI, PAI
+-konkretne szczegoly techniczne implementacji
+-fragmenty kodu
+-przykladowe problemy ktore implementowalismy
+
+ROZDZIAL 5: TESTY 15 stron
+
+-wyniki
+-wykresy
+-rodzaje danych wejsciowych
+
+ROZDZIAL 6: ZAKONCZENIE/PODSUMOWANIE 3-4
+
+-jaki to nasz projekt nie jest zajebisty
+-szybszy niz same GPU
