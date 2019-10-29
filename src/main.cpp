@@ -4,7 +4,7 @@
 #include <cstdint>
 #include "MaxReduction.cuh"
 #include <iostream>
-#include <omp.h>
+#include "PassManager.hpp"
 
 template<class Callable, class... Args>
 void timeWrapper(Callable f, Args... args) {
@@ -30,16 +30,8 @@ int main() {
 	auto start = std::chrono::steady_clock::now();
 
 	using DataBlock = MaxReduction<float>::DataBlock;
-	DataBlock out, out2;
-	#pragma omp parallel num_threads(2)
-	{
-		int tid = omp_get_thread_num();
-		if (tid == 1)
-			out2 = mr.runGPU(DataBlock(inData + inSize / 2, inSize / 2));
-		//else
-			//out = mr.runCPU(DataBlock(inData, inSize / 2));
-	}
-	auto x = mr.merge({ /*out,*/ out2 });
+	PassManager<float> pm(&mr);
+	auto x = pm.run(DataBlock(inData, inSize));
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	printf("%f %f\n", elapsed_seconds.count(), x.first[0]);

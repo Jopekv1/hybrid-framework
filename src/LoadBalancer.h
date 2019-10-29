@@ -9,10 +9,17 @@ class LoadBalancer
 public:
 	using DataBlock = typename Algorithm<Type>::DataBlock;
 	
-	LoadBalancer(Algorithm<Type> algorithm) : algorithm(algorithm) {}
+	LoadBalancer(const Algorithm<Type>* algorithm) : algorithm(algorithm) {}
 
-	std::vector < std::pair<DataBlock, Processor> > calculate(DataBlock data);
+	std::vector < std::pair<DataBlock, Processor> > calculate(DataBlock data)
+	{
+		return
+		{
+			std::pair<DataBlock, Processor>(DataBlock(Data.first, Data.second/2), {0, gpu}),
+			std::pair<DataBlock, Processor>(DataBlock(Data.first+Data.second/2, Data.second/2), {1, cpu})
+		};
+	}
 
 private:
-	const Algorithm<Type> algorithm;
+	const Algorithm<Type>* algorithm;
 };

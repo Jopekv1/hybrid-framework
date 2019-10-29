@@ -10,11 +10,14 @@ class MaxReduction : public Algorithm<Type>
 public:
 	using DataBlock = typename Algorithm<Type>::DataBlock;
 	
-	DataBlock runCPU(DataBlock data) override;
-	DataBlock runGPU(DataBlock data) override;
-	bool isBase(DataBlock data) override;
-	std::vector<DataBlock> divide(DataBlock data) override { return {data}; };
-	DataBlock merge(std::vector<DataBlock> data) override;
+	DataBlock runBaseCPU(DataBlock data) override;
+	DataBlock runGPU(DataBlock data) const override;
+	void preDivision(DataBlock) override {};
+	bool isBase(DataBlock data) const override;
+	std::uint32_t getChildrenNum(DataBlock) const override { return 1; }
+	std::pair<Type*, std::uint64_t> getChild(DataBlock data, std::uint32_t) const override { return data; }
+	DataBlock merge(std::vector<DataBlock> data) const override;
+	DataBlock mergeBlocks(std::vector<DataBlock> data) const override { return merge(data); }
 
 	virtual ~MaxReduction() {};
 };
@@ -22,7 +25,7 @@ public:
 
 
 template<typename Type>
-auto MaxReduction<Type>::runCPU(DataBlock data) -> DataBlock
+auto MaxReduction<Type>::runBaseCPU(DataBlock data) -> DataBlock
 {
 	auto* ret = new float; // move to engine
 	*ret = *std::max_element(data.first, data.first + data.second);
@@ -56,7 +59,7 @@ __global__ void reduce(float* g_idata, float* g_odata, unsigned int n) {
 }
 
 template<typename Type>
-auto MaxReduction<Type>::runGPU(DataBlock data) -> DataBlock
+auto MaxReduction<Type>::runGPU(DataBlock data) const -> DataBlock
 {
 	const int threads = 512;
 	unsigned int numPerThread = round(log2(data.second));
@@ -100,13 +103,13 @@ auto MaxReduction<Type>::runGPU(DataBlock data) -> DataBlock
 }
 
 template <typename Type>
-bool MaxReduction<Type>::isBase(DataBlock data)
+bool MaxReduction<Type>::isBase(DataBlock data) const
 {
-	return data.second < 512;
+	return true;
 }
 
 template <typename Type>
-auto MaxReduction<Type>::merge(std::vector<DataBlock> data) -> DataBlock
+auto MaxReduction<Type>::merge(std::vector<DataBlock> data) const -> DataBlock
 {
 	Type* max = new Type; //move to engine
 	*max = std::numeric_limits<Type>::min();
