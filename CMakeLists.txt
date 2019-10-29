@@ -9,6 +9,7 @@ file(GLOB SOURCES
     "src/*.h"
     "src/*.cpp"
     "src/*.cu"
+    "src/*.cuh"
 )
 
 add_executable(hpdp ${SOURCES})
