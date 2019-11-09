@@ -11,13 +11,13 @@ public:
 	using DataBlock = typename Algorithm<Type>::DataBlock;
 	
 	DataBlock runBaseCPU(DataBlock data) override;
-	DataBlock runGPU(DataBlock data) const override;
+	DataBlock runGPU(DataBlock data) override;
 	void preDivision(DataBlock) override {};
-	bool isBase(DataBlock data) const override;
-	std::uint32_t getChildrenNum(DataBlock) const override { return 1; }
-	std::pair<Type*, std::uint64_t> getChild(DataBlock data, std::uint32_t) const override { return data; }
-	DataBlock merge(std::vector<DataBlock> data) const override;
-	DataBlock mergeBlocks(std::vector<DataBlock> data) const override { return merge(data); }
+	bool isBase(DataBlock data) override;
+	std::uint32_t getChildrenNum(DataBlock) override { return 1; }
+	std::pair<Type*, std::uint64_t> getChild(DataBlock data, std::uint32_t) override { return data; }
+	DataBlock merge(std::vector<DataBlock> data) override;
+	DataBlock mergeBlocks(std::vector<DataBlock> data) override { return merge(data); }
 
 	virtual ~MaxReduction() {};
 };
@@ -59,7 +59,7 @@ __global__ void reduce(float* g_idata, float* g_odata, unsigned int n) {
 }
 
 template<typename Type>
-auto MaxReduction<Type>::runGPU(DataBlock data) const -> DataBlock
+auto MaxReduction<Type>::runGPU(DataBlock data) -> DataBlock
 {
 	const int threads = 512;
 	unsigned int numPerThread = round(log2(data.second));
@@ -103,13 +103,13 @@ auto MaxReduction<Type>::runGPU(DataBlock data) const -> DataBlock
 }
 
 template <typename Type>
-bool MaxReduction<Type>::isBase(DataBlock data) const
+bool MaxReduction<Type>::isBase(DataBlock data)
 {
 	return true;
 }
 
 template <typename Type>
-auto MaxReduction<Type>::merge(std::vector<DataBlock> data) const -> DataBlock
+auto MaxReduction<Type>::merge(std::vector<DataBlock> data) -> DataBlock
 {
 	Type* max = new Type; //move to engine
 	*max = std::numeric_limits<Type>::min();

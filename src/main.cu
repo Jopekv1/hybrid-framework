@@ -2,9 +2,11 @@
 #include <chrono>
 #include <cuda_runtime.h>
 #include <cstdint>
-#include "MaxReduction.cuh"
+#include "MaxReduction.cu"
+#include "Sort.cu"
 #include <iostream>
 #include "PassManager.hpp"
+#include <omp.h>
 
 template<class Callable, class... Args>
 void timeWrapper(Callable f, Args... args) {
@@ -16,25 +18,26 @@ void timeWrapper(Callable f, Args... args) {
 }
 
 int main() {
-	std::uint64_t inSize = std::uint64_t(2048) * 1024 * 1024 / sizeof(float);
+	std::uint64_t inSize = std::uint64_t(1024) * 1024 * 1024 / sizeof(float);
 	float* inData;
 	cudaMallocManaged(&inData, inSize * sizeof(float));
 
 	for (std::uint64_t i = 0; i < inSize; ++i)
 	{
-		inData[i] = i;
+		inData[i] = static_cast <float> (std::rand()) / static_cast <float> (RAND_MAX);
 	}
 
-	MaxReduction<float> mr;
+	Sort<float> mr;
 
 	auto start = std::chrono::steady_clock::now();
 
-	using DataBlock = MaxReduction<float>::DataBlock;
-	PassManager<float> pm(&mr);
+	using DataBlock = Sort<float>::DataBlock;
+	PassManager<float, Sort<float>> pm{};
 	auto x = pm.run(DataBlock(inData, inSize));
 	auto end = std::chrono::steady_clock::now();
 	std::chrono::duration<double> elapsed_seconds = end - start;
-	printf("%f %f\n", elapsed_seconds.count(), x.first[0]);
-	cudaFree(inData);
+	printf("%f %d\n", elapsed_seconds.count(), std::is_sorted(inData, inData + inSize));
+	//for (int i = 0; i < x.second; i++)
+		//printf("%f\n", x.first[i]);
 	return 0;
 }

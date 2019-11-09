@@ -2,48 +2,54 @@
 #include "Algorithm.h"
 #include "LoadBalancer.h"
 
-template<typename Type>
+template<typename DType, typename AlgType>
 class PassManager
 {
 public:
-	using DataBlock = typename Algorithm<Type>::DataBlock;
+	using DataBlock = typename Algorithm<DType>::DataBlock;
 	
-	PassManager(Algorithm<Type>* algorithm/*, engine*/) : algorithm(algorithm) {}
+	PassManager(/* engine*/) {}
 	~PassManager() = default;
 
 	DataBlock run(DataBlock data);
 
 private:
-	Algorithm<Type>* algorithm;
-
-	DataBlock runCPU(DataBlock data);
+	DataBlock runCPU(DataBlock data, AlgType* algorithm);
 };
 
-template <typename Type>
-auto PassManager<Type>::run(DataBlock data) -> DataBlock
+template<typename DType, typename AlgType>
+auto PassManager<DType, AlgType>::run(DataBlock data) -> DataBlock
 {
-	LoadBalancer<Type> lb(algorithm);
+	AlgType* alg = new AlgType;
+	LoadBalancer<DType> lb(alg);
 	auto dividedData = lb.calculate(data);
 
 	std::vector<DataBlock> outs;
-#pragma omp parallel for private(algorithm)
-	for (int i = 0; i < dividedData.size(); i++)
+	std::vector<AlgType*> algs(dividedData.size());
+	for (int i = 0; i < dividedData.size(); ++i)
+	{
+		algs[i] = new AlgType;
+	}
+#pragma omp parallel for
+	for (int i = 0; i < dividedData.size(); ++i)
 	{
 		DataBlock out;
 		if (dividedData[i].second.type == cpu)
-			out = runCPU(dividedData[i].first);
+			out = runCPU(dividedData[i].first, algs[i]);
 		else
-			out = algorithm->runGPU(dividedData[i].first);//engine.runAlgorithm(dividedData[i].first);
+			out = algs[i]->runGPU(dividedData[i].first);//engine.runAlgorithm(dividedData[i].first);
+		//std::sort(dividedData[i].first.first, dividedData[i].first.first + dividedData[i].first.second);
+		//auto out = dividedData[i].first;
 #pragma omp critical
 		outs.push_back(out);
 	}
 	//engine.free(data);
-	DataBlock ret = algorithm->mergeBlocks(outs);
+	DataBlock ret = alg->mergeBlocks(outs);
 	return ret;
 }
 
-template <typename Type>
-auto PassManager<Type>::runCPU(DataBlock data) -> DataBlock
+template<typename DType, typename AlgType>
+auto PassManager<DType, AlgType>::runCPU(DataBlock data, AlgType* algorithm) -> DataBlock
 {
 	algorithm->preDivision(data);
 	if (algorithm->isBase(data))
@@ -52,7 +58,7 @@ auto PassManager<Type>::runCPU(DataBlock data) -> DataBlock
 	std::vector<DataBlock> outs(n);
 	for (int i = 0; i < n; i++)
 	{
-		outs[i] = runCPU(algorithm->getChild(data, i));
+		outs[i] = runCPU(algorithm->getChild(data, i), algorithm);
 	}
 	return algorithm->merge(outs);
 }
