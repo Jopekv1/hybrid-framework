@@ -1,0 +1,29 @@
+1. Wprowadzenie 3-5 - Arturrito
+  1.1 Abstract/Streszczenie - Arturitto
+  1.2 Kto co robił - Bartek
+  1.3 Kto co pisał (spis treści z podpisami ~ten dokument) - Bartek
+2. State of the art 20-25 - Bartek/Jopek
+  2.1 Opis problemu - Bartek
+  2.2 Dziel i zwyciężaj - Jopek
+  2.3 Zrównoleglenie - Bartek
+  2.4 Architektura GPU - Bartek
+  2.5 Opis technologii (OpenMP/CUDA itd.) - Bartek
+  2.6 Istniejące rozwiązania - Jopek/Bartek
+3. Propozycja rozwiązania 10 - Jopek
+  3.1 Możliwe podejścia - dlaczego inne nie działają
+    3.1.1 Redukcja na threadach GPU
+    3.1.2 CPU dzieli, GPU - liczy
+  3.2 Nasze podejście - dlaczego jest najlepsze (Prezka                   Artiego do przeróbki)
+  3.3 “Dlaczego jest lepsze niż 2.6”
+4. Projekt i implementacja 10-20 - Arturitto
+  4.1 Diagramy i opisy z PAI
+  4.2 Opisy impolementacji algorytmow
+  4.3 Jak używać tego ustrojstwa
+  4.4 Przyszłość 
+5. Testy i wyniki 15 - Mati
+  5.0 Opis środowiska w jakim testowano (sprzęt, system, itp.)
+  5.1 Opis jakie testy zostały przeprowadzone - dlaczego akurat takie algorytmy/dane(rozmiary)?
+  5.2 Wyniki testów z podziałem na typy
+  5.3 Komentarz do wyników, porównanie z innymi rozwiązaniami, dlaczego hybryda to syf
+6. Zakończenie 3-4 - Mati
+  6.1 Było miło ale się skończyło
