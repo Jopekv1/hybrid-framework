@@ -13,7 +13,7 @@
   3.1 Możliwe podejścia - dlaczego inne nie działają
     3.1.1 Redukcja na threadach GPU
     3.1.2 CPU dzieli, GPU - liczy
-  3.2 Nasze podejście - dlaczego jest najlepsze (Prezka                   Artiego do przeróbki)
+  3.2 Nasze podejście - dlaczego jest najlepsze (Prezka Artiego do przeróbki)
   3.3 “Dlaczego jest lepsze niż 2.6”
 4. Projekt i implementacja 10-20 - Arturitto
   4.1 Diagramy i opisy z PAI
