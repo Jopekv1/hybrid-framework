@@ -27,33 +27,33 @@ public:
 template<typename Type>
 auto MaxReduction<Type>::runBaseCPU(DataBlock data) -> DataBlock
 {
-	auto* ret = new float; // move to engine
+	auto* ret = new Type; // move to engine
 	*ret = *std::max_element(data.first, data.first + data.second);
 	return DataBlock(ret, 1);
 }
 
 template <unsigned int blockSize>
 __device__ void warpReduce(volatile float* sdata, unsigned int tid) {
-	if (blockSize >= 64) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 32]);
-	if (blockSize >= 32) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 16]);
-	if (blockSize >= 16) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 8]);
-	if (blockSize >= 8) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 4]);
-	if (blockSize >= 4) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 2]);
-	if (blockSize >= 2) sdata[tid] = fmaxf(sdata[tid], sdata[tid + 1]);
+	if (blockSize >= 64) sdata[tid] = max(sdata[tid], sdata[tid + 32]);
+	if (blockSize >= 32) sdata[tid] = max(sdata[tid], sdata[tid + 16]);
+	if (blockSize >= 16) sdata[tid] = max(sdata[tid], sdata[tid + 8]);
+	if (blockSize >= 8) sdata[tid] = max(sdata[tid], sdata[tid + 4]);
+	if (blockSize >= 4) sdata[tid] = max(sdata[tid], sdata[tid + 2]);
+	if (blockSize >= 2) sdata[tid] = max(sdata[tid], sdata[tid + 1]);
 }
 
 template <unsigned int blockSize, typename Type, typename = std::enable_if<std::is_same<Type, float>::value, int>>
-__global__ void reduce(float* g_idata, float* g_odata, unsigned int n) {
+__global__ void reduce(Type* g_idata, Type* g_odata, unsigned int n) {
 	extern __shared__ float sdata[];
 	unsigned int tid = threadIdx.x;
 	unsigned int i = blockIdx.x * (blockSize * 2) + tid;
 	unsigned int gridSize = blockSize * 2 * gridDim.x;
 	sdata[tid] = 0;
-	while (i < n) { sdata[tid] = fmaxf(g_idata[i], g_idata[i + blockSize]); i += gridSize; }
+	while (i < n) { sdata[tid] = max(g_idata[i], g_idata[i + blockSize]); i += gridSize; }
 	__syncthreads();
-	if (blockSize >= 512) { if (tid < 256) { sdata[tid] = fmaxf(sdata[tid], sdata[tid + 256]); } __syncthreads(); }
-	if (blockSize >= 256) { if (tid < 128) { sdata[tid] = fmaxf(sdata[tid], sdata[tid + 128]); } __syncthreads(); }
-	if (blockSize >= 128) { if (tid < 64) { sdata[tid] = fmaxf(sdata[tid], sdata[tid + 64]); } __syncthreads(); }
+	if (blockSize >= 512) { if (tid < 256) { sdata[tid] = max(sdata[tid], sdata[tid + 256]); } __syncthreads(); }
+	if (blockSize >= 256) { if (tid < 128) { sdata[tid] = max(sdata[tid], sdata[tid + 128]); } __syncthreads(); }
+	if (blockSize >= 128) { if (tid < 64) { sdata[tid] = max(sdata[tid], sdata[tid + 64]); } __syncthreads(); }
 	if (tid < 32) warpReduce<blockSize>(sdata, tid);
 	if (tid == 0) g_odata[blockIdx.x] = sdata[0];
 }

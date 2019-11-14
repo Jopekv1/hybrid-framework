@@ -24,13 +24,13 @@ public:
 
 	virtual ~BinarySearch() {};
 private:
-	const float searchedValue = static_cast<float> (rand());
+	const Type searchedValue = static_cast<Type> (rand());
 };
 
 template<typename Type>
 auto BinarySearch<Type>::runBaseCPU(DataBlock data) -> DataBlock
 {
-	auto* ret = new float;
+	auto* ret = new Type;
 	*ret = data.first[(data.second)/2] == searchedValue ? searchedValue : 0.0;
 	return DataBlock(ret, 1);
 }
@@ -38,8 +38,9 @@ auto BinarySearch<Type>::runBaseCPU(DataBlock data) -> DataBlock
 template<typename Type>
 auto BinarySearch<Type>::runGPU(DataBlock data) -> DataBlock
 {
-	auto* ret = new float; // move to engine
-	*ret = thrust::binary_search(data.first, data.first + data.second, searchedValue, thrust::less<float>()) ? searchedValue : 0;
+	auto* ret = new Type; // move to engine
+	*ret = thrust::binary_search(data.first, data.first + data.second, searchedValue, thrust::less<Type>()) ? searchedValue : 0;
+	cudaDeviceSynchronize();
 	return DataBlock(ret, 1);
 }
 

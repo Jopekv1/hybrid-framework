@@ -39,6 +39,7 @@ typename Sort<Type>::DataBlock Sort<Type>::runGPU(DataBlock data)
 {
 	thrust::device_ptr<Type> ptr(data.first);
 	thrust::stable_sort(thrust::device, ptr, ptr + data.second);
+	cudaDeviceSynchronize();
 	return data;
 }
 

@@ -8,13 +8,14 @@ class PassManager
 public:
 	using DataBlock = typename Algorithm<DType>::DataBlock;
 	
-	PassManager(/* engine*/) {}
+	PassManager(/* engine*/int t) { type = t; }
 	~PassManager() = default;
 
 	DataBlock run(DataBlock data);
 
 private:
 	DataBlock runCPU(DataBlock data, AlgType* algorithm);
+	int type;
 };
 
 template<typename DType, typename AlgType>
@@ -22,7 +23,7 @@ auto PassManager<DType, AlgType>::run(DataBlock data) -> DataBlock
 {
 	AlgType* alg = new AlgType;
 	LoadBalancer<DType> lb(alg);
-	auto dividedData = lb.calculate(data);
+	auto dividedData = lb.calculate(data, type);
 
 	std::vector<DataBlock> outs;
 	std::vector<AlgType*> algs(dividedData.size());

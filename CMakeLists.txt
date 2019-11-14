@@ -7,6 +7,7 @@ include_directories(src)
 
 file(GLOB SOURCES
     "src/*.h"
+    "src/*.hpp"
     "src/*.cpp"
     "src/*.cu"
     "src/*.cuh"

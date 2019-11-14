@@ -37,12 +37,12 @@ public:
 	std::vector <Processor> getProcessors() { return processors; }
 
 	template<typename Type>
-	void allocateMemoryInCuda(Type* pointer, std::uint32_t dataNumber, int deviceNumber)
+	void allocateMemoryInCuda(Type* pointer, std::uint32_t dataNumber)
 	{
 		std::int32_t ptr = -1;
 		for (std::uint32_t i = 0; i < allocations.size(); i++)
 		{
-			if (allocations[i].first == deviceNumber && allocations[i].second == pointer)
+			if (allocations[i] == pointer)
 			{
 				ptr = i;
 				break;
@@ -50,36 +50,34 @@ public:
 		}
 		if (ptr == -1)
 		{
-			cudaSetDevice(deviceNumber);
 			cudaMallocManaged(&pointer, dataNumber * sizeof(Type));
-			allocations.push_back(std::make_pair(deviceNumber, pointer));
+			allocations.push_back();
 		}
 		else
 		{
 			printf("This pointer was already used on this device");
 		}
 	}
-	void freeMemoryInCuda(void* pointer, int deviceNumber)
+
+	void freeMemoryInCuda(void* pointer)
 	{
-		std::int32_t ptr = -1, pos = 0;
+		std::int32_t ptr = -1;
 		for (std::uint32_t i = 0; i < allocations.size(); i++)
 		{
-			if (allocations[i].first == deviceNumber && allocations[i].second == pointer)
+			if (allocations[i] == pointer)
 			{
 				ptr = i;
 				break;
 			}
-			pos++;
 		}
 		if (ptr == -1)
 		{
-			printf("There is no such pointer on this device");
+			printf("There is no such pointer");
 		}
 		else
 		{
-			cudaSetDevice(deviceNumber);
 			cudaFree(pointer);
-			allocations.erase(allocations.begin() + pos);
+			allocations.erase(allocations.begin() + ptr);
 		}
 	}
 
@@ -94,8 +92,7 @@ public:
 	{
 		for (std::uint32_t i = 0; i < allocations.size(); i++)
 		{
-			cudaSetDevice(allocations[i].first);
-			cudaFree(allocations[i].second);
+			cudaFree(allocations[i]);
 		}
 	}
 
@@ -103,5 +100,5 @@ private:
 	int deviceCount;
 	std::vector <float> memorySizes;
 	std::vector <Processor> processors;
-	std::vector <std::pair<int,void*>> allocations;
+	std::vector <void*> allocations;
 };
