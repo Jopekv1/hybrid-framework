@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "MaxReduction.cu"
 #include "Sort.cu"
+#include "BinarySearch.cu"
 #include <iostream>
 #include "PassManager.hpp"
 #include <omp.h>
