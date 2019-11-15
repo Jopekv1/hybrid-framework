@@ -31,7 +31,25 @@ template<typename Type>
 auto BinarySearch<Type>::runBaseCPU(DataBlock data) -> DataBlock
 {
 	auto* ret = new Type;
-	*ret = data.first[(data.second)/2] == searchedValue ? searchedValue : 0.0;
+	if (data.second == 1)
+	{
+		*ret = data.first[0] == searchedValue ? searchedValue : 0.0;
+	}
+	else if (data.second == 2)
+	{
+		if (data.first[0] == searchedValue || data.first[1] == searchedValue)
+		{
+			*ret = searchedValue;
+		}
+		else 
+		{
+			*ret = 0;
+		}
+	}
+	else
+	{
+		*ret = data.first[(data.second) / 2] == searchedValue ? searchedValue : 0.0;
+	}
 	return DataBlock(ret, 1);
 }
 
@@ -47,7 +65,7 @@ auto BinarySearch<Type>::runGPU(DataBlock data) -> DataBlock
 template <typename Type>
 bool BinarySearch<Type>::isBase(DataBlock data)
 {
-	return data.first[(data.second)/2] == searchedValue || data.second == 1;
+	return data.first[(data.second)/2] == searchedValue || data.second == 1 || data.second == 2;
 }
 
 template <typename Type>
