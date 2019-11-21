@@ -28,5 +28,5 @@ Spis tresci (Kto co pisał (spis treści z podpisami ~ten dokument)) - Bartek
   5.1 Opis jakie testy zostały przeprowadzone - dlaczego akurat takie algorytmy/dane(rozmiary)?
   5.2 Wyniki testów z podziałem na typy
   5.3 Komentarz do wyników, porównanie z innymi rozwiązaniami, dlaczego hybryda to syf
-6. Zakończenie 3-4 - Mati
+6. Zakończenie 3-4 - Jopek
   6.1 Było miło ale się skończyło
