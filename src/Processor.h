@@ -2,12 +2,12 @@
 
 enum ProcType
 {
-	cpu,
-	gpu
+    cpu,
+    gpu
 };
 
 struct Processor
 {
-	const int id;
-	const ProcType type;
+    const int id;
+    const ProcType type;
 };
