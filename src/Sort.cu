@@ -13,6 +13,10 @@ class Sort : public Algorithm<Type>
 public:
     using DataBlock = typename Algorithm<Type>::DataBlock;
 
+	Sort(DataBlock params): Algorithm<Type>()
+    {
+    }
+
     DataBlock runBaseCPU(DataBlock data) override;
     DataBlock runBaseGPU(DataBlock data);
     DataBlock runGPU(DataBlock data) override;

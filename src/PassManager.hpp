@@ -8,29 +8,28 @@ class PassManager
 public:
     using DataBlock = typename Algorithm<DType>::DataBlock;
     
-    PassManager(/* engine*/int t, int s) { type = t; share = s; }
+    PassManager(Engine& engine, LoadBalancer<DType>& loadBalancer) : engine(engine), lb(loadBalancer) {}
     ~PassManager() = default;
 
-    DataBlock run(DataBlock data);
+    DataBlock run(DataBlock data, DataBlock params);
 
 private:
     DataBlock runCPU(DataBlock data, AlgType* algorithm);
-    int type;
-    int share;
+	LoadBalancer<DType>& lb;
+	Engine& engine;
 };
 
 template<typename DType, typename AlgType>
-auto PassManager<DType, AlgType>::run(DataBlock data) -> DataBlock
+auto PassManager<DType, AlgType>::run(DataBlock data, DataBlock params) -> DataBlock
 {
-    AlgType* alg = new AlgType;
-    LoadBalancer<DType> lb(alg);
-    auto dividedData = lb.calculate(data, type, share);
+    AlgType* alg = new AlgType(params);
+    auto dividedData = lb.calculate(data, engine);
 
     std::vector<DataBlock> outs;
     std::vector<AlgType*> algs(dividedData.size());
     for (int i = 0; i < dividedData.size(); ++i)
     {
-        algs[i] = new AlgType;
+		algs[i] = new AlgType(params);
     }
 #pragma omp parallel for
     for (int i = 0; i < dividedData.size(); ++i)
@@ -39,18 +38,13 @@ auto PassManager<DType, AlgType>::run(DataBlock data) -> DataBlock
         if (dividedData[i].second.type == cpu)
             out = runCPU(dividedData[i].first, algs[i]);
         else
-        {
-            cudaSetDevice(dividedData[i].second.id);
-            out = algs[i]->runGPU(dividedData[i].first);
-        }
-        //engine.runAlgorithm(dividedData[i].first);
-        //std::sort(dividedData[i].first.first, dividedData[i].first.first + dividedData[i].first.second);
-        //auto out = dividedData[i].first;
+            out = engine.runOnGPU(algs[i], dividedData[i].first, dividedData[i].second.id);
 #pragma omp critical
         outs.push_back(out);
     }
-    //engine.free(data);
     DataBlock ret = alg->mergeBlocks(outs);
+	for (int i = 0; i < dividedData.size(); i++)
+		delete algs[i];
     return ret;
 }
 

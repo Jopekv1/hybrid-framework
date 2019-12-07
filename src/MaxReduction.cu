@@ -9,7 +9,11 @@ class MaxReduction : public Algorithm<Type>
 {
 public:
     using DataBlock = typename Algorithm<Type>::DataBlock;
-    
+	
+	explicit MaxReduction(DataBlock params): Algorithm<Type>(params)
+    {
+    }
+
     DataBlock runBaseCPU(DataBlock data) override;
     DataBlock runGPU(DataBlock data) override;
     void preDivision(DataBlock) override {};
@@ -43,14 +47,20 @@ __device__ void warpReduce(volatile float* sdata, unsigned int tid) {
     if (blockSize >= 2) sdata[tid] = max(sdata[tid], sdata[tid + 1]);
 }
 
-template <unsigned int blockSize, typename Type, typename = std::enable_if<std::is_same<Type, float>::value, int>>
+template <unsigned int blockSize, typename Type>
 __global__ void reduce(Type* g_idata, Type* g_odata, unsigned int n) {
     extern __shared__ float sdata[];
     unsigned int tid = threadIdx.x;
     unsigned int i = blockIdx.x * (blockSize * 2) + tid;
     unsigned int gridSize = blockSize * 2 * gridDim.x;
     sdata[tid] = 0;
-    while (i < n) { sdata[tid] = max(g_idata[i], g_idata[i + blockSize]); i += gridSize; }
+    while (i < n)
+    {
+		Type temp = sdata[tid];
+	    sdata[tid] = max(g_idata[i], g_idata[i + blockSize]);
+		sdata[tid] = max(temp, sdata[tid]);
+    	i += gridSize;
+    }
     __syncthreads();
     if (blockSize >= 512) { if (tid < 256) { sdata[tid] = max(sdata[tid], sdata[tid + 256]); } __syncthreads(); }
     if (blockSize >= 256) { if (tid < 128) { sdata[tid] = max(sdata[tid], sdata[tid + 128]); } __syncthreads(); }
@@ -118,7 +128,6 @@ auto MaxReduction<Type>::merge(std::vector<DataBlock> data) -> DataBlock
     for (int i = 0; i < data.size(); i++)
     {
         Type b = *std::max_element(data[i].first, data[i].first + data[i].second);
-        cudaFree(data[i].first);
         #pragma omp critical
         *max = std::max(*max, b);
     }

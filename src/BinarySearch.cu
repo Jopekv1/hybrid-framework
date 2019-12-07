@@ -13,6 +13,7 @@ class BinarySearch : public Algorithm<Type>
 public:
     using DataBlock = typename Algorithm<Type>::DataBlock;
 
+	explicit BinarySearch(DataBlock params) { searchedValue = *params.first; }
     DataBlock runBaseCPU(DataBlock data) override;
     DataBlock runGPU(DataBlock data) override;
     void preDivision(DataBlock) override {};
@@ -24,7 +25,7 @@ public:
 
     virtual ~BinarySearch() {};
 private:
-    const Type searchedValue = static_cast<Type> (rand());
+	const Type searchedValue;
 };
 
 template<typename Type>
@@ -82,13 +83,13 @@ std::pair<Type*, std::uint64_t> BinarySearch<Type>::getChild(DataBlock data, std
 template <typename Type>
 auto BinarySearch<Type>::merge(std::vector<DataBlock> data) -> DataBlock
 {
-    Type* ret = new Type; //move to engine
+	Type* ret = new Type;
     *ret = std::numeric_limits<Type>::min();
     for (int i = 0; i < data.size(); i++)
     {
         Type b = data[i].first[0];
         cudaFree(data[i].first);
-        *ret = std::max(*ret, b); // either searchedValue or 0.0 (if not found)
+        *ret = std::max(*ret, b);
     }
     return DataBlock(ret, 1);
 }

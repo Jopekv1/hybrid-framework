@@ -8,7 +8,7 @@ class Algorithm
 {
 public:
     using DataBlock = std::pair<Type*, std::uint64_t>;
-    
+    Algorithm(DataBlock params) {}
     virtual ~Algorithm() = default;
     
     virtual DataBlock runBaseCPU(DataBlock data) = 0;
