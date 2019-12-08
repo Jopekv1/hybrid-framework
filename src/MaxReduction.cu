@@ -31,7 +31,7 @@ public:
 template<typename Type>
 auto MaxReduction<Type>::runBaseCPU(DataBlock data) -> DataBlock
 {
-    Type* ret; // move to engine
+    Type* ret; 
     cudaMallocManaged(&ret, sizeof(Type));
     *ret = *std::max_element(data.first, data.first + data.second);
     return DataBlock(ret, 1);
@@ -56,9 +56,8 @@ __global__ void reduce(Type* g_idata, Type* g_odata, unsigned int n) {
     sdata[tid] = 0;
     while (i < n)
     {
-		Type temp = sdata[tid];
-	    sdata[tid] = max(g_idata[i], g_idata[i + blockSize]);
-		sdata[tid] = max(temp, sdata[tid]);
+	    sdata[tid] = max(sdata[tid], g_idata[i]);
+		sdata[tid] = max(sdata[tid], g_idata[i + blockSize]);
     	i += gridSize;
     }
     __syncthreads();
@@ -83,7 +82,7 @@ auto MaxReduction<Type>::runGPU(DataBlock data) -> DataBlock
 
     Type* outData;
 
-    cudaMallocManaged(&outData, outSize * sizeof(Type)); //move this to engine
+    cudaMallocManaged(&outData, outSize * sizeof(Type));
 
     switch (threads)
     {
@@ -122,7 +121,7 @@ bool MaxReduction<Type>::isBase(DataBlock data)
 template <typename Type>
 auto MaxReduction<Type>::merge(std::vector<DataBlock> data) -> DataBlock
 {
-    Type* max = new Type; //move to engine
+    Type* max = new Type;
     *max = std::numeric_limits<Type>::min();
 #pragma omp parallel for
     for (int i = 0; i < data.size(); i++)
