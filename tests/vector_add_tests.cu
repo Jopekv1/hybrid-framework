@@ -55,16 +55,5 @@ TEST(vectorAdd, vectorAdd) {
 	LoadBalancer balancer;
 	balancer.execute(&kernel, 0, dataSize);
 
-	for (int i = 0; i < dataSize; i++) {
-		if (50529027 == kernel.dst[i]) {
-			int a=0;
-			a++;
-		}
-		else {
-			int b=0;
-			b++;
-		}
-	}
-
 	cudaFree(src);
 }
