@@ -1,0 +1,76 @@
+#include "kernel.h"
+#include "load_balancer.h"
+
+#include <omp.h>
+#include <iostream>
+
+LoadBalancer::LoadBalancer() {
+	this->getDeviceCount();
+}
+
+LoadBalancer::~LoadBalancer() = default;
+
+void LoadBalancer::execute(Kernel* kernel, int wokrItemStartIndex, int workItemsCnt) {
+	//TODO:
+	//-perform tuning
+
+	int id;
+	bool nextIter;
+	int i = wokrItemStartIndex;
+	int workCounter = wokrItemStartIndex;
+	int workItemsCount = workItemsCnt;
+	int numberOfGpus = this->gpuCount;
+	int cpuWorkGroupSize = this->workGroupSize;
+	int gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
+
+	#pragma omp parallel default(none) private(i, id, nextIter) shared(workCounter, workItemsCount, numberOfGpus, cpuWorkGroupSize, gpuWorkGroupSize, kernel) 
+	{
+		/*auto threadCount = omp_get_num_threads();
+		if (threadCount == 1) {
+			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SINGLE THREAD RUNNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+		}*/
+
+		#pragma omp for schedule(dynamic, cpuWorkGroupSize)
+		for (i = 0; i < workItemsCount; i++) {
+			id = omp_get_thread_num();
+			nextIter = false;
+
+			#pragma omp critical
+			{
+				if (i < workCounter) {
+					nextIter = true;
+				}
+				else {
+					if (id < numberOfGpus) {
+						workCounter += gpuWorkGroupSize;
+						//std::cout << "thread " << id << " running on GPU work items: " << i << " - " << i + gpuWorkGroupSize - 1 << std::endl;
+
+						if (workCounter >= workItemsCount) {
+							gpuWorkGroupSize = workItemsCount - i;
+						}
+					}
+					else {
+						workCounter += cpuWorkGroupSize;
+						//std::cout << "thread " << id << " running on CPU work items: " << i << " - " << i + cpuWorkGroupSize - 1 << std::endl;
+
+						if (workCounter >= workItemsCount) {
+							cpuWorkGroupSize = workItemsCount - i;
+						}
+					}
+				}
+			}
+			if (nextIter) {
+				continue;
+			}
+
+			if (id < numberOfGpus) {
+				kernel->runGpu(id, i, gpuWorkGroupSize);
+			}
+			else {
+				kernel->runCpu(i, cpuWorkGroupSize);
+			}
+		}
+	}
+
+	this->synchronize();
+}

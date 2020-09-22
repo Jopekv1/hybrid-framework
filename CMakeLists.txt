@@ -1,19 +1,33 @@
-cmake_minimum_required(VERSION 3.14)
-project(hpdp)
+cmake_minimum_required(VERSION 3.16)
+project(hybrid_executor LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
-enable_language(CUDA)
-include_directories(src)
 
-file(GLOB SOURCES
-    "src/*.h"
-    "src/*.hpp"
-    "src/*.cpp"
-    "src/*.cu"
-    "src/*.cuh"
+include_directories(src)
+add_subdirectory(third_party)
+
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/kernel.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/load_balancer.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/load_balancer.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/load_balancer.h
 )
 
-add_executable(hpdp ${SOURCES})
+set(TESTS
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/filter_tests.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/integral_tests.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/sort_tests.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/vector_add_tests.cu
+)
+
+
+add_executable(hybrid_executor_tests ${SOURCES} ${TESTS})
+
+set_target_properties(hybrid_executor_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 find_package(OpenMP REQUIRED)
-target_link_libraries(hpdp PRIVATE OpenMP::OpenMP_CXX)
+target_link_libraries(hybrid_executor_tests PRIVATE OpenMP::OpenMP_CXX)
+
+target_link_libraries(hybrid_executor_tests PRIVATE gtest)
