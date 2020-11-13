@@ -1,8 +1,10 @@
 #include "kernel.h"
 #include "load_balancer.h"
 
-#include <omp.h>
 #include <iostream>
+#include <thread>
+#include <utility>
+#include <mutex>
 
 LoadBalancer::LoadBalancer() {
 	this->getDeviceCount();
@@ -10,66 +12,83 @@ LoadBalancer::LoadBalancer() {
 
 LoadBalancer::~LoadBalancer() = default;
 
-void LoadBalancer::execute(Kernel* kernel, uint64_t wokrItemStartIndex, uint64_t workItemsCnt) {
+struct threadData {
+	int gpuCount;
+
+	int threadId;
+	Kernel* kernel;
+	std::mutex* balancerMtx;
+
+	uint64_t workItemsCnt;
+	uint64_t cpuWorkGroupSize;
+	uint64_t gpuWorkGroupSize;
+
+	uint64_t* workCounter;
+};
+
+void threadExecute(threadData & data) {
+	for (uint64_t i = 0; i < data.workItemsCnt; i++) {
+		data.balancerMtx->lock();
+		if (i < *data.workCounter) {
+			i = *data.workCounter;
+		}
+		if (data.threadId == 0) {
+			*data.workCounter += data.gpuWorkGroupSize;
+		}
+		else {
+			*data.workCounter += data.cpuWorkGroupSize;
+		}
+
+		data.balancerMtx->unlock();
+
+		if (i >= data.workItemsCnt) {
+			break;
+		}
+
+		if (data.threadId == 0) {
+			if (i + data.gpuWorkGroupSize > data.workItemsCnt) {
+				data.gpuWorkGroupSize = data.workItemsCnt - i;
+			}
+			//printf("Thread %d run on GPU, items: %d - %d\n", data.threadId, i, i + data.gpuWorkGroupSize - 1);
+			data.kernel->runGpu(0, i, data.gpuWorkGroupSize);
+		}
+		else {
+			if (i + data.cpuWorkGroupSize > data.workItemsCnt) {
+				data.cpuWorkGroupSize = data.workItemsCnt - i;
+			}
+			//printf("Thread %d run on CPU, items: %d - %d\n", data.threadId, i, i + data.cpuWorkGroupSize - 1);
+			data.kernel->runCpu(i, data.cpuWorkGroupSize);
+		}
+	}
+}
+
+void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	//TODO:
 	//-perform tuning
 
-	uint64_t id;
-	bool nextIter;
-	long long i = wokrItemStartIndex;
-	uint64_t workCounter = wokrItemStartIndex;
-	uint64_t workItemsCount = workItemsCnt;
-	int numberOfGpus = this->gpuCount;
-	uint64_t cpuWorkGroupSize = this->workGroupSize;
-	uint64_t gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
+	constexpr int threadCount = 8;
 
-	#pragma omp parallel default(none) private(i, id, nextIter) shared(workCounter, workItemsCount, numberOfGpus, cpuWorkGroupSize, gpuWorkGroupSize, kernel) 
-	{
-		auto threadCount = omp_get_num_threads();
-		if (threadCount == 1) {
-			printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SINGLE THREAD RUNNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-		}
+	std::thread threads[threadCount];
+	threadData datas[threadCount];
 
-		#pragma omp for schedule(dynamic, cpuWorkGroupSize)
-		for (i = 0; i < workItemsCount; i++) {
-			id = omp_get_thread_num();
-			nextIter = false;
+	uint64_t workCounter = 0u;
+	std::mutex balancerMtx;
 
-			#pragma omp critical
-			{
-				if (i < workCounter) {
-					nextIter = true;
-				}
-				else {
-					if (id < numberOfGpus) {
-						workCounter += gpuWorkGroupSize;
-						//printf("thread %d running on GPU work items: %d - %d\n",id,i, i + gpuWorkGroupSize - 1);
+	for (int i = 0; i < threadCount; i++) {
+		datas[i].gpuCount = this->gpuCount;
+		datas[i].threadId = i;
+		datas[i].kernel = kernel;
+		datas[i].balancerMtx = &balancerMtx;
+		datas[i].workItemsCnt = workItemsCnt;
+		datas[i].cpuWorkGroupSize = this->workGroupSize;
+		datas[i].gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
+		datas[i].workCounter = &workCounter;
 
-						if (workCounter >= workItemsCount) {
-							gpuWorkGroupSize = workItemsCount - i;
-						}
-					}
-					else {
-						workCounter += cpuWorkGroupSize;
-						//printf("thread %d running on CPU work items: %d - %d\n", id, i, i + cpuWorkGroupSize - 1);
+		threads[i] = std::thread(threadExecute, datas[i]);
+	}
 
-						if (workCounter >= workItemsCount) {
-							cpuWorkGroupSize = workItemsCount - i;
-						}
-					}
-				}
-			}
-			if (nextIter) {
-				continue;
-			}
-
-			if (id < numberOfGpus) {
-				kernel->runGpu(id, i, gpuWorkGroupSize);
-			}
-			else {
-				kernel->runCpu(i, cpuWorkGroupSize);
-			}
-		}
+	for (int i = 0; i < threadCount; i++) {
+		threads[i].join();
 	}
 
 	this->synchronize();

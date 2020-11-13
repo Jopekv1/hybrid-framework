@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <chrono>
 
-constexpr uint64_t dataSize = 200000000;
+constexpr uint64_t dataSize = 250000000;
 
 void verify(int* dst, int size) {
 	std::cout << "Veryfying data..." << std::endl;
@@ -75,7 +75,7 @@ TEST(vectorAdd, hybrid) {
 	LoadBalancer balancer;
 
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, 0, dataSize);
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

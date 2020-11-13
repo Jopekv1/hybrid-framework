@@ -7,7 +7,7 @@ public:
 	LoadBalancer();
 	virtual ~LoadBalancer();
 
-	void execute(Kernel* kernel, uint64_t wokrItemStartIndex, uint64_t workItemsCnt);
+	void execute(Kernel* kernel, uint64_t workItemsCnt);
 
 private:
 
@@ -16,6 +16,6 @@ private:
 
 	int gpuCount = 1;
 	uint64_t workGroupSize = 10000;
-	uint64_t gpuWorkGroups = 1024*1000;
+	uint64_t gpuWorkGroups = 10000;
 
 };
