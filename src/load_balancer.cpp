@@ -10,25 +10,25 @@ LoadBalancer::LoadBalancer() {
 
 LoadBalancer::~LoadBalancer() = default;
 
-void LoadBalancer::execute(Kernel* kernel, int wokrItemStartIndex, int workItemsCnt) {
+void LoadBalancer::execute(Kernel* kernel, uint64_t wokrItemStartIndex, uint64_t workItemsCnt) {
 	//TODO:
 	//-perform tuning
 
-	int id;
+	uint64_t id;
 	bool nextIter;
-	int i = wokrItemStartIndex;
-	int workCounter = wokrItemStartIndex;
-	int workItemsCount = workItemsCnt;
+	long long i = wokrItemStartIndex;
+	uint64_t workCounter = wokrItemStartIndex;
+	uint64_t workItemsCount = workItemsCnt;
 	int numberOfGpus = this->gpuCount;
-	int cpuWorkGroupSize = this->workGroupSize;
-	int gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
+	uint64_t cpuWorkGroupSize = this->workGroupSize;
+	uint64_t gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
 
 	#pragma omp parallel default(none) private(i, id, nextIter) shared(workCounter, workItemsCount, numberOfGpus, cpuWorkGroupSize, gpuWorkGroupSize, kernel) 
 	{
-		/*auto threadCount = omp_get_num_threads();
+		auto threadCount = omp_get_num_threads();
 		if (threadCount == 1) {
-			std::cout << "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SINGLE THREAD RUNNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-		}*/
+			printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SINGLE THREAD RUNNING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+		}
 
 		#pragma omp for schedule(dynamic, cpuWorkGroupSize)
 		for (i = 0; i < workItemsCount; i++) {
@@ -43,7 +43,7 @@ void LoadBalancer::execute(Kernel* kernel, int wokrItemStartIndex, int workItems
 				else {
 					if (id < numberOfGpus) {
 						workCounter += gpuWorkGroupSize;
-						//std::cout << "thread " << id << " running on GPU work items: " << i << " - " << i + gpuWorkGroupSize - 1 << std::endl;
+						//printf("thread %d running on GPU work items: %d - %d\n",id,i, i + gpuWorkGroupSize - 1);
 
 						if (workCounter >= workItemsCount) {
 							gpuWorkGroupSize = workItemsCount - i;
@@ -51,7 +51,7 @@ void LoadBalancer::execute(Kernel* kernel, int wokrItemStartIndex, int workItems
 					}
 					else {
 						workCounter += cpuWorkGroupSize;
-						//std::cout << "thread " << id << " running on CPU work items: " << i << " - " << i + cpuWorkGroupSize - 1 << std::endl;
+						//printf("thread %d running on CPU work items: %d - %d\n", id, i, i + cpuWorkGroupSize - 1);
 
 						if (workCounter >= workItemsCount) {
 							cpuWorkGroupSize = workItemsCount - i;

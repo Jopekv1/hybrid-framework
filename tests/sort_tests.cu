@@ -35,6 +35,3 @@ public:
 
 	int* data;
 };
-
-TEST(sort, sort) {
-}

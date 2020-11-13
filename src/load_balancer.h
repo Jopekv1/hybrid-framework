@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 class Kernel;
 
 class LoadBalancer {
@@ -5,7 +7,7 @@ public:
 	LoadBalancer();
 	virtual ~LoadBalancer();
 
-	void execute(Kernel* kernel, int wokrItemStartIndex, int workItemsCnt);
+	void execute(Kernel* kernel, uint64_t wokrItemStartIndex, uint64_t workItemsCnt);
 
 private:
 
@@ -13,7 +15,7 @@ private:
 	void synchronize();
 
 	int gpuCount = 1;
-	int workGroupSize = 10000;
-	int gpuWorkGroups = 100;
+	uint64_t workGroupSize = 10000;
+	uint64_t gpuWorkGroups = 1024*1000;
 
 };
