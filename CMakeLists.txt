@@ -25,7 +25,4 @@ add_executable(hybrid_executor_tests ${SOURCES} ${TESTS})
 
 set_target_properties(hybrid_executor_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-find_package(OpenMP REQUIRED)
-target_link_libraries(hybrid_executor_tests PRIVATE OpenMP::OpenMP_CXX)
-
 target_link_libraries(hybrid_executor_tests PRIVATE gtest)
