@@ -15,10 +15,8 @@ set(SOURCES
 )
 
 set(TESTS
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/filter_tests.cu
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/integral_tests.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/blur_tests.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/tests/sort_tests.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/vector_add_tests.cu
 )
 
