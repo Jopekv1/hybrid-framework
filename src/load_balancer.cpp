@@ -6,8 +6,10 @@
 #include <utility>
 #include <mutex>
 
-LoadBalancer::LoadBalancer() {
+LoadBalancer::LoadBalancer(uint64_t workGroupSize, uint64_t gpuWorkGroups) {
 	this->getDeviceCount();
+	this->workGroupSize = workGroupSize;
+	this->gpuWorkGroups = gpuWorkGroups;
 }
 
 LoadBalancer::~LoadBalancer() = default;

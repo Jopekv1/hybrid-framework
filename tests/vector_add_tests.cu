@@ -88,7 +88,7 @@ public:
 TEST(vectorAdd, hybrid) {
 	VecAddKernel kernel;
 
-	LoadBalancer balancer;
+	LoadBalancer balancer(1000, 100000);
 
 	auto start = std::chrono::steady_clock::now();
 	balancer.execute(&kernel, dataSize);

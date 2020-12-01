@@ -4,7 +4,8 @@ class Kernel;
 
 class LoadBalancer {
 public:
-	LoadBalancer();
+	LoadBalancer() = delete;
+	LoadBalancer(uint64_t workGroupSize,uint64_t gpuWorkGroups);
 	virtual ~LoadBalancer();
 
 	void execute(Kernel* kernel, uint64_t workItemsCnt);
@@ -15,7 +16,7 @@ private:
 	void synchronize();
 
 	int gpuCount = 1;
-	uint64_t workGroupSize = 10000;
-	uint64_t gpuWorkGroups = 10000;
+	uint64_t workGroupSize = 1000;
+	uint64_t gpuWorkGroups = 100000;
 
 };
