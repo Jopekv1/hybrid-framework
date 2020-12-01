@@ -68,7 +68,7 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	//TODO:
 	//-perform tuning
 
-	constexpr int threadCount = 8;
+	constexpr int threadCount = 4;
 
 	std::thread threads[threadCount];
 	threadData datas[threadCount];

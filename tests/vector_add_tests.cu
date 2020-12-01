@@ -39,6 +39,8 @@ class VecAddKernel : public Kernel {
 public:
 
 	VecAddKernel() {
+		std::cout << "Initializing data..." << std::endl;
+
 		cudaMallocManaged(&src, dataSize * sizeof(int));
 		cudaMallocManaged(&src1, dataSize * sizeof(int));
 		cudaMallocManaged(&src2, dataSize * sizeof(int));
@@ -53,6 +55,8 @@ public:
 			src4[i] = 5;
 			dst[i] = 6;
 		}
+
+		std::cout << "Data initialized" << std::endl;
 	}
 
 	~VecAddKernel() {
@@ -101,6 +105,8 @@ TEST(vectorAdd, hybrid) {
 }
 
 TEST(vectorAdd, gpu) {
+	std::cout << "Initializing data..." << std::endl;
+
 	int* src = nullptr;
 	int* src1 = nullptr;
 	int* src2 = nullptr;
@@ -123,6 +129,8 @@ TEST(vectorAdd, gpu) {
 		src4[i] = 5;
 		dst[i] = 6;
 	}
+
+	std::cout << "Data initialized" << std::endl;
 
 	int blockSize = 1024;
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;

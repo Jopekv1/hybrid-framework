@@ -10,11 +10,17 @@ unsigned char** inputFrames;
 unsigned char** outputFramesHybrid;
 unsigned char** outputFramesGpu;
 float* filter;
-constexpr int imageWidth = 1920;
-constexpr int imageHight = 1080;
-constexpr int frameCount = 1;
+
+//HDTV 720p
+constexpr int imageWidth = 1280;
+constexpr int imageHight = 720;
+
+//10 sekund filmu 30 FPS
+constexpr int frameCount = 300;
 
 void initializeData() {
+	std::cout << "Initializing data..." << std::endl;
+
 	srand(time(NULL));
 
 	inputFrames = new unsigned char* [frameCount];
@@ -36,6 +42,7 @@ void initializeData() {
 	for (int i = 0; i < 9 * 9; i++) {
 		filter[i] = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
 	}
+	std::cout << "Data initialized" << std::endl;
 }
 
 void verifyData() {
@@ -59,6 +66,7 @@ void verifyData() {
 }
 
 void freeData() {
+	std::cout << "Freeing data..." << std::endl;
 	delete[] filter;
 	for (int i = 0; i < frameCount; i++) {
 		cudaFree(inputFrames[i]);
@@ -68,6 +76,7 @@ void freeData() {
 	delete[] inputFrames;
 	delete[] outputFramesHybrid;
 	delete[] outputFramesGpu;
+	std::cout << "Data released" << std::endl;
 }
 
 __global__
@@ -118,7 +127,7 @@ public:
 			float result = 0.0f;
 
 			for (int i = 0; i < imageWidth; i++) {
-				for (int j = 0; i < imageHight; j++) {
+				for (int j = 0; j < imageHight; j++) {
 					for (int l = -4; i < 5; i++) {
 						int pixelXI = i + l;
 
@@ -142,13 +151,13 @@ public:
 							result += (filter[(m + 4) * 9 + (l + 4)] * inputFrame[pixelYJ * imageWidth + pixelXI]);
 						}
 					}
-					outputFramesHybrid[k][j * imageWidth + i] = result;
+					outputFramesHybrid[k][j * imageWidth + i] = static_cast<char>(result);
 				}
 			}
 		}
 	};
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
-		const dim3 blockSize(64, 64, 1);
+		const dim3 blockSize(16, 16, 1);
 		const dim3 gridSize(imageWidth / blockSize.x + 1, imageHight / blockSize.y + 1, 1);
 
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
@@ -158,36 +167,34 @@ public:
 };
 
 TEST(blur, hybrid) {
-	/*initializeData();
+	initializeData();
 
 	BlurKernel kernel;
-	LoadBalancer balancer(100,1000);
+	LoadBalancer balancer(1,100);
 
 	auto start = std::chrono::steady_clock::now();
 	balancer.execute(&kernel, frameCount);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";*/
-
+	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 }
 
 TEST(blur, gpu) {
-	initializeData();
-	const dim3 blockSize(64, 64, 1);
+	const dim3 blockSize(16, 16, 1);
 	const dim3 gridSize(imageWidth / blockSize.x + 1, imageHight / blockSize.y + 1, 1);
 
 	auto start = std::chrono::steady_clock::now();
 	for (int i = 0; i < frameCount; i++) {
 		gaussianBlur<<<gridSize, blockSize>>>(inputFrames[i], outputFramesGpu[i], imageWidth, imageHight, filter);
 	}
+	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	cudaDeviceSynchronize();
 
-	verifyData();
+	//verifyData();
 	freeData();
 }
