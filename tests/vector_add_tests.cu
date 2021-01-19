@@ -6,7 +6,7 @@
 #include <chrono>
 #include <cmath>
 
-constexpr uint64_t dataSize = 1000000000;
+constexpr uint64_t dataSize = 1800000000;
 
 void verify(int* dst, int size) {
 	std::cout << "Veryfying data..." << std::endl;

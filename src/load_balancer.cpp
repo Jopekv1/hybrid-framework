@@ -70,7 +70,7 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 
 	constexpr int threadCount = 4;
 
-	std::thread threads[threadCount];
+	std::thread threads[threadCount - 1];
 	threadData datas[threadCount];
 
 	uint64_t workCounter = 0u;
@@ -86,8 +86,12 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 		datas[i].gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
 		datas[i].workCounter = &workCounter;
 
-		threads[i] = std::thread(threadExecute, std::ref(datas[i]));
+		if (i > 0) {
+			threads[i - 1] = std::thread(threadExecute, std::ref(datas[i]));
+		}
 	}
+
+	threadExecute(std::ref(datas[0]));
 
 	for (int i = 0; i < threadCount; i++) {
 		threads[i].join();
