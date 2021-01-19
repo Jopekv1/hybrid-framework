@@ -41,8 +41,8 @@ public:
 	VecAddKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
-		int* srcHost = new int[dataSize * sizeof(int)];
-		int* dstHost = new int[dataSize * sizeof(int)];
+		srcHost = new int[dataSize];
+		dstHost = new int[dataSize];
 
 		cudaMalloc(&src, dataSize * sizeof(int));
 		cudaMalloc(&dst, dataSize * sizeof(int));
