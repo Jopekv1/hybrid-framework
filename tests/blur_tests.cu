@@ -166,35 +166,35 @@ public:
 	};
 };
 
-TEST(blur, hybrid) {
-	initializeData();
-
-	BlurKernel kernel;
-	LoadBalancer balancer(1,100);
-
-	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, frameCount);
-	auto end = std::chrono::steady_clock::now();
-
-	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
-}
-
-TEST(blur, gpu) {
-	const dim3 blockSize(16, 16, 1);
-	const dim3 gridSize(imageWidth / blockSize.x + 1, imageHight / blockSize.y + 1, 1);
-
-	auto start = std::chrono::steady_clock::now();
-	for (int i = 0; i < frameCount; i++) {
-		gaussianBlur<<<gridSize, blockSize>>>(inputFrames[i], outputFramesGpu[i], imageWidth, imageHight, filter);
-	}
-	cudaDeviceSynchronize();
-	auto end = std::chrono::steady_clock::now();
-
-	std::chrono::duration<double> elapsed_seconds = end - start;
-	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
-
-
-	//verifyData();
-	freeData();
-}
+//TEST(blur, hybrid) {
+//	initializeData();
+//
+//	BlurKernel kernel;
+//	LoadBalancer balancer(1,100);
+//
+//	auto start = std::chrono::steady_clock::now();
+//	balancer.execute(&kernel, frameCount);
+//	auto end = std::chrono::steady_clock::now();
+//
+//	std::chrono::duration<double> elapsed_seconds = end - start;
+//	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
+//}
+//
+//TEST(blur, gpu) {
+//	const dim3 blockSize(16, 16, 1);
+//	const dim3 gridSize(imageWidth / blockSize.x + 1, imageHight / blockSize.y + 1, 1);
+//
+//	auto start = std::chrono::steady_clock::now();
+//	for (int i = 0; i < frameCount; i++) {
+//		gaussianBlur<<<gridSize, blockSize>>>(inputFrames[i], outputFramesGpu[i], imageWidth, imageHight, filter);
+//	}
+//	cudaDeviceSynchronize();
+//	auto end = std::chrono::steady_clock::now();
+//
+//	std::chrono::duration<double> elapsed_seconds = end - start;
+//	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
+//
+//
+//	//verifyData();
+//	freeData();
+//}
