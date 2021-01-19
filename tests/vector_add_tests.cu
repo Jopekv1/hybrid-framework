@@ -54,6 +54,9 @@ public:
 
 		cudaStreamCreate(&ownStream);
 
+		cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
+		cudaMemcpyAsync(dst, dstHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
+
 		std::cout << "Data initialized" << std::endl;
 	}
 
@@ -76,10 +79,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		cudaMemcpyAsync(dst + workItemId, dstHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 		add<<<numBlocks, blockSize,0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
-		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
