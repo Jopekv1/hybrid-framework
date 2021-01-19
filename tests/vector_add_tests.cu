@@ -114,34 +114,48 @@ TEST(vectorAdd, gpuSimulation) {
 
 	int* src = nullptr;
 	int* dst = nullptr;
+	int* srcHost = nullptr;
+	int* dstHost = nullptr;
 
-	cudaMallocManaged(&src, dataSize * sizeof(int));
-	cudaMallocManaged(&dst, dataSize * sizeof(int));
+	cudaStream_t ownStream;
+
+	cudaMallocHost(&srcHost, dataSize * sizeof(int));
+	cudaMallocHost(&dstHost, dataSize * sizeof(int));
+
+	cudaMalloc(&src, dataSize * sizeof(int));
+	cudaMalloc(&dst, dataSize * sizeof(int));
 
 	for (uint64_t i = 0; i < dataSize; i++) {
-		src[i] = 7;
-		dst[i] = 8;
+		srcHost[i] = 7;
+		dstHost[i] = 8;
 	}
+
+	cudaStreamCreate(&ownStream);
+
+	cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
+	cudaMemcpyAsync(dst, dstHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 
 	std::cout << "Data initialized" << std::endl;
 
 	int blockSize = 1024;
-	int numBlocks = (cpuPackageSize* gpuPackageSize + blockSize - 1) / blockSize;
-
-	auto partialSize = dataSize / (cpuPackageSize * gpuPackageSize);
+	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	for (int i = 0; i < partialSize; i++) {
-		add<<<numBlocks, blockSize>>>(cpuPackageSize * gpuPackageSize, src + i * cpuPackageSize * gpuPackageSize, dst + i * cpuPackageSize * gpuPackageSize);
-	}
+	add<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, dst);
+	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	verify(dst, dataSize);
+	verify(dstHost, dataSize);
 
 	cudaFree(dst);
 	cudaFree(src);
+
+	cudaFree(dstHost);
+	cudaFree(srcHost);
+
+	cudaStreamDestroy(ownStream);
 }
