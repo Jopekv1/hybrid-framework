@@ -41,8 +41,12 @@ public:
 	VecAddKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
-		cudaMallocManaged(&src, dataSize * sizeof(int));
-		cudaMallocManaged(&dst, dataSize * sizeof(int));
+		int* srcHost = new int[dataSize * sizeof(int)];
+		int* dstHost = new int[dataSize * sizeof(int)];
+
+		cudaMalloc(&src, dataSize * sizeof(int));
+		cudaMalloc(&dst, dataSize * sizeof(int));
+
 		for (uint64_t i = 0; i < dataSize; i++) {
 			src[i] = 7;
 			dst[i] = 8;
@@ -54,6 +58,9 @@ public:
 	~VecAddKernel() {
 		cudaFree(dst);
 		cudaFree(src);
+
+		delete[] srcHost;
+		delete[] dstHost;
 	}
 
 	void runCpu(int workItemId, int workGroupSize) override {
@@ -61,14 +68,21 @@ public:
 			dst[i] = (int)pow((double)src[i],(double)dst[i]);
 		}
 	};
+
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
+		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize, cudaMemcpyHostToDevice);
+		cudaMemcpyAsync(dst + workItemId, dstHost + workItemId, workGroupSize, cudaMemcpyHostToDevice);
 		add<<<numBlocks, blockSize>>>(workGroupSize, src + workItemId, dst + workItemId);
+		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize, cudaMemcpyDeviceToHost);
+		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize, cudaMemcpyDeviceToHost);
 	};
 
 	int* src = nullptr;
 	int* dst = nullptr;
+	int* srcHost = nullptr;
+	int* dstHost = nullptr;
 };
 
 constexpr uint64_t cpuPackageSize = 1000;
