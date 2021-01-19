@@ -93,7 +93,7 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 
 	threadExecute(std::ref(datas[0]));
 
-	for (int i = 0; i < threadCount; i++) {
+	for (int i = 0; i < threadCount - 1; i++) {
 		threads[i].join();
 	}
 
