@@ -48,8 +48,8 @@ public:
 		cudaMalloc(&dst, dataSize * sizeof(int));
 
 		for (uint64_t i = 0; i < dataSize; i++) {
-			src[i] = 7;
-			dst[i] = 8;
+			srcHost[i] = 7;
+			dstHost[i] = 8;
 		}
 
 		cudaStreamCreate(&ownStream);
