@@ -5,7 +5,7 @@
 #include <cuda_runtime.h>
 #include <chrono>
 
-constexpr uint64_t dataSize = 250000000;
+constexpr uint64_t dataSize = 1000000000;
 
 void verify(int* dst, int size) {
 	std::cout << "Veryfying data..." << std::endl;
@@ -71,11 +71,13 @@ public:
 	int* dst = nullptr;
 };
 
+constexpr uint64_t cpuPackageSize = 1000;
+constexpr uint64_t gpuPackageSize = 10000;
 
 TEST(vectorAdd, hybrid) {
 	VecAddKernel kernel;
 
-	LoadBalancer balancer(1000, 100000);
+	LoadBalancer balancer(cpuPackageSize, gpuPackageSize);
 
 	auto start = std::chrono::steady_clock::now();
 	balancer.execute(&kernel, dataSize);
@@ -87,7 +89,7 @@ TEST(vectorAdd, hybrid) {
 	verify(kernel.dst, dataSize);
 }
 
-TEST(vectorAdd, gpu) {
+TEST(vectorAdd, gpuSimulation) {
 	std::cout << "Initializing data..." << std::endl;
 
 	int* src = nullptr;
@@ -104,10 +106,14 @@ TEST(vectorAdd, gpu) {
 	std::cout << "Data initialized" << std::endl;
 
 	int blockSize = 1024;
-	int numBlocks = (dataSize + blockSize - 1) / blockSize;
+	int numBlocks = (cpuPackageSize* gpuPackageSize + blockSize - 1) / blockSize;
+
+	auto partialSize = dataSize / (cpuPackageSize * gpuPackageSize);
 
 	auto start = std::chrono::steady_clock::now();
-	add<<<numBlocks, blockSize>>>(dataSize, src, dst);
+	for (int i = 0; i < partialSize; i++) {
+		add<<<numBlocks, blockSize>>>(cpuPackageSize * gpuPackageSize, src + i * cpuPackageSize * gpuPackageSize, dst + i * cpuPackageSize * gpuPackageSize);
+	}
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
 
