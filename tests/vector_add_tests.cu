@@ -41,8 +41,8 @@ public:
 	VecAddKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
-		srcHost = new int[dataSize];
-		dstHost = new int[dataSize];
+		cudaMallocHost(&srcHost, dataSize * sizeof(int));
+		cudaMallocHost(&dstHost, dataSize * sizeof(int));
 
 		cudaMalloc(&src, dataSize * sizeof(int));
 		cudaMalloc(&dst, dataSize * sizeof(int));
@@ -52,6 +52,8 @@ public:
 			dst[i] = 8;
 		}
 
+		cudaStreamCreate(&ownStream);
+
 		std::cout << "Data initialized" << std::endl;
 	}
 
@@ -59,30 +61,34 @@ public:
 		cudaFree(dst);
 		cudaFree(src);
 
-		delete[] srcHost;
-		delete[] dstHost;
+		cudaFree(dstHost);
+		cudaFree(srcHost);
+
+		cudaStreamDestroy(ownStream);
 	}
 
 	void runCpu(int workItemId, int workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
-			dst[i] = (int)pow((double)src[i],(double)dst[i]);
+			dstHost[i] = (int)pow((double)srcHost[i],(double)dstHost[i]);
 		}
 	};
 
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize, cudaMemcpyHostToDevice);
-		cudaMemcpyAsync(dst + workItemId, dstHost + workItemId, workGroupSize, cudaMemcpyHostToDevice);
-		add<<<numBlocks, blockSize>>>(workGroupSize, src + workItemId, dst + workItemId);
-		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize, cudaMemcpyDeviceToHost);
-		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize, cudaMemcpyDeviceToHost);
+		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize, cudaMemcpyHostToDevice, ownStream);
+		cudaMemcpyAsync(dst + workItemId, dstHost + workItemId, workGroupSize, cudaMemcpyHostToDevice, ownStream);
+		add<<<numBlocks, blockSize,0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
+		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize, cudaMemcpyDeviceToHost, ownStream);
+		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize, cudaMemcpyDeviceToHost, ownStream);
 	};
 
 	int* src = nullptr;
 	int* dst = nullptr;
 	int* srcHost = nullptr;
 	int* dstHost = nullptr;
+
+	cudaStream_t ownStream;
 };
 
 constexpr uint64_t cpuPackageSize = 1000;
@@ -100,7 +106,7 @@ TEST(vectorAdd, hybrid) {
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
-	verify(kernel.dst, dataSize);
+	verify(kernel.dstHost, dataSize);
 }
 
 TEST(vectorAdd, gpuSimulation) {
