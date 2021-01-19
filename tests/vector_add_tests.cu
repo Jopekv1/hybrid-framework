@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 #include <cuda_runtime.h>
 #include <chrono>
+#include <cmath>
 
 constexpr uint64_t dataSize = 1000000000;
 
@@ -12,7 +13,7 @@ void verify(int* dst, int size) {
 	bool correct = true;
 	int errCnt = 0;
 	for (uint64_t i = 0; i < size; i++) {
-		if (dst[i] != 3) {
+		if (dst[i] != 5764801) {
 			correct = false;
 			errCnt++;
 			//std::cout << i << std::endl;
@@ -27,11 +28,10 @@ void verify(int* dst, int size) {
 }
 
 __global__
-void add(int n, int* src, int* dst)
-{
+void add(int n, int* src, int* dst){
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
-		dst[index] = src[index] + dst[index];
+		dst[index] = (int)pow((double)src[index], (double)dst[index]);
 	}
 }
 
@@ -44,8 +44,8 @@ public:
 		cudaMallocManaged(&src, dataSize * sizeof(int));
 		cudaMallocManaged(&dst, dataSize * sizeof(int));
 		for (uint64_t i = 0; i < dataSize; i++) {
-			src[i] = 1;
-			dst[i] = 2;
+			src[i] = 7;
+			dst[i] = 8;
 		}
 
 		std::cout << "Data initialized" << std::endl;
@@ -58,7 +58,7 @@ public:
 
 	void runCpu(int workItemId, int workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
-			dst[i] += src[i];
+			dst[i] = (int)pow((double)src[i],(double)dst[i]);
 		}
 	};
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
@@ -99,8 +99,8 @@ TEST(vectorAdd, gpuSimulation) {
 	cudaMallocManaged(&dst, dataSize * sizeof(int));
 
 	for (uint64_t i = 0; i < dataSize; i++) {
-		src[i] = 1;
-		dst[i] = 2;
+		src[i] = 7;
+		dst[i] = 8;
 	}
 
 	std::cout << "Data initialized" << std::endl;
