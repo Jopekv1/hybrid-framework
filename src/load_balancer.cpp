@@ -6,10 +6,11 @@
 #include <utility>
 #include <mutex>
 
-LoadBalancer::LoadBalancer(uint64_t workGroupSize, uint64_t gpuWorkGroups) {
+LoadBalancer::LoadBalancer(uint64_t workGroupSize, uint64_t gpuWorkGroups, int numThreads) {
 	this->getDeviceCount();
 	this->workGroupSize = workGroupSize;
 	this->gpuWorkGroups = gpuWorkGroups;
+	this->numThreads = numThreads;
 }
 
 LoadBalancer::~LoadBalancer() = default;
@@ -68,10 +69,11 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	//TODO:
 	//-perform tuning
 
-	constexpr int threadCount = 4;
+	constexpr int maxThreadCount = 8;
+	const int threadCount = this->numThreads;
 
-	std::thread threads[threadCount - 1];
-	threadData datas[threadCount];
+	std::thread threads[maxThreadCount - 1];
+	threadData datas[maxThreadCount];
 
 	uint64_t workCounter = 0u;
 	std::mutex balancerMtx;
@@ -86,12 +88,12 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 		datas[i].gpuWorkGroupSize = this->workGroupSize * this->gpuWorkGroups;
 		datas[i].workCounter = &workCounter;
 
-		if (i > 0) {
-			threads[i - 1] = std::thread(threadExecute, std::ref(datas[i]));
+		if (i < threadCount - 1) {
+			threads[i] = std::thread(threadExecute, std::ref(datas[i]));
 		}
 	}
 
-	threadExecute(std::ref(datas[0]));
+	threadExecute(std::ref(datas[threadCount - 1]));
 
 	for (int i = 0; i < threadCount - 1; i++) {
 		threads[i].join();

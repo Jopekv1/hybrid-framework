@@ -6,7 +6,7 @@
 #include <chrono>
 #include <cmath>
 
-constexpr uint64_t dataSize = 1800000000;
+constexpr uint64_t dataSize = 100000000;
 
 void verify(int* dst, int size) {
 	std::cout << "Veryfying data..." << std::endl;
@@ -28,7 +28,7 @@ void verify(int* dst, int size) {
 }
 
 __global__
-void add(int n, int* src, int* dst){
+void add(int n, int* src, int* dst) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
 		dst[index] = (int)pow((double)src[index], (double)dst[index]);
@@ -72,14 +72,14 @@ public:
 
 	void runCpu(int workItemId, int workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
-			dstHost[i] = (int)pow((double)srcHost[i],(double)dstHost[i]);
+			dstHost[i] = (int)pow((double)srcHost[i], (double)dstHost[i]);
 		}
 	};
 
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		add<<<numBlocks, blockSize,0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
+		add<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
 		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
@@ -91,13 +91,22 @@ public:
 	cudaStream_t ownStream;
 };
 
-constexpr uint64_t cpuPackageSize = 1000;
-constexpr uint64_t gpuPackageSize = 10000;
+class VectorAddFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
+public:
 
-TEST(vectorAdd, hybrid) {
+	void SetUp() override {
+		std::tie(workGroupSize, gpuWorkGroups, numThreads) = GetParam();
+	}
+
+	uint64_t workGroupSize = 0;
+	uint64_t gpuWorkGroups = 0;
+	int numThreads = 0;
+};
+
+TEST_P(VectorAddFixture, hybrid) {
 	VecAddKernel kernel;
 
-	LoadBalancer balancer(cpuPackageSize, gpuPackageSize);
+	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
 	auto start = std::chrono::steady_clock::now();
 	balancer.execute(&kernel, dataSize);
@@ -109,7 +118,35 @@ TEST(vectorAdd, hybrid) {
 	verify(kernel.dstHost, dataSize);
 }
 
-TEST(vectorAdd, gpuSimulation) {
+static uint64_t workGroupSizesValues[] = {
+	10,
+	100,
+	1000,
+	10000,
+	100000 };
+
+static uint64_t gpuWorkGroupsValues[] = {
+	100,
+	1000,
+	10000,
+	20000,
+	50000,
+	100000 };
+
+static int numThreadsValues[] = {
+	2,
+	4,
+	6,
+	8 };
+
+INSTANTIATE_TEST_CASE_P(VectorAdd,
+	VectorAddFixture,
+	::testing::Combine(
+		::testing::ValuesIn(workGroupSizesValues),
+		::testing::ValuesIn(gpuWorkGroupsValues),
+		::testing::ValuesIn(numThreadsValues)));
+
+TEST(VectorAdd, gpu) {
 	std::cout << "Initializing data..." << std::endl;
 
 	int* src = nullptr;
@@ -141,7 +178,7 @@ TEST(vectorAdd, gpuSimulation) {
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	add<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, dst);
+	add << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src, dst);
 	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
