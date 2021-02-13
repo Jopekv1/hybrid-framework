@@ -3,6 +3,8 @@ project(hybrid_executor LANGUAGES CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
 include_directories(src)
 add_subdirectory(third_party)
 
@@ -17,6 +19,7 @@ set(SOURCES
 set(TESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/blur_tests.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/max_element.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/vector_add_tests.cu
 )
 
@@ -24,5 +27,4 @@ set(TESTS
 add_executable(hybrid_executor_tests ${SOURCES} ${TESTS})
 
 set_target_properties(hybrid_executor_tests PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-
 target_link_libraries(hybrid_executor_tests PRIVATE gtest)

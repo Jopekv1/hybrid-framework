@@ -64,8 +64,8 @@ public:
 		cudaFree(dst);
 		cudaFree(src);
 
-		cudaFree(dstHost);
-		cudaFree(srcHost);
+		cudaFreeHost(dstHost);
+		cudaFreeHost(srcHost);
 
 		cudaStreamDestroy(ownStream);
 	}
@@ -96,6 +96,12 @@ public:
 
 	void SetUp() override {
 		std::tie(workGroupSize, gpuWorkGroups, numThreads) = GetParam();
+
+		std::cout << "Test params: workGroupSize: " << workGroupSize << ", gpuWorkGroups: " << gpuWorkGroups << ", numThread: " << numThreads << std::endl;
+
+		if (gpuWorkGroups * workGroupSize >= dataSize) {
+			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+		}
 	}
 
 	uint64_t workGroupSize = 0;
@@ -139,7 +145,7 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_CASE_P(VectorAdd,
+INSTANTIATE_TEST_SUITE_P(VectorAdd,
 	VectorAddFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),
@@ -191,8 +197,8 @@ TEST(VectorAdd, gpu) {
 	cudaFree(dst);
 	cudaFree(src);
 
-	cudaFree(dstHost);
-	cudaFree(srcHost);
+	cudaFreeHost(dstHost);
+	cudaFreeHost(srcHost);
 
 	cudaStreamDestroy(ownStream);
 }

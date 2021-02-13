@@ -169,7 +169,7 @@ you'll get a compiler error. We used to require the arguments to support the
 `<<` is supported, it will be called to print the arguments when the assertion
 fails; otherwise googletest will attempt to print them in the best way it can.
 For more details and how to customize the printing of the arguments, see the
-[documentation](../../googlemock/docs/cook_book.md#teaching-gmock-how-to-print-your-values).
+[documentation](./advanced.md#teaching-googletest-how-to-print-your-values).
 
 These assertions can work with a user-defined type, but only if you define the
 corresponding comparison operator (e.g., `==` or `<`). Since this is discouraged
@@ -227,7 +227,7 @@ two `string` objects, use `EXPECT_EQ`, `EXPECT_NE`, and etc instead.
 | `ASSERT_STRCASEEQ(str1,str2);` | `EXPECT_STRCASEEQ(str1,str2);` | the two C strings have the same content, ignoring case   |
 | `ASSERT_STRCASENE(str1,str2);` | `EXPECT_STRCASENE(str1,str2);` | the two C strings have different contents, ignoring case |
 
-<!-- mdformat on-->
+<!-- mdformat on -->
 
 Note that "CASE" in an assertion name means that case is ignored. A `NULL`
 pointer and an empty string are considered *different*.
