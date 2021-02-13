@@ -28,17 +28,17 @@ void verify(int* dst, int size) {
 }
 
 __global__
-void Pow(int n, int* src, int* dst) {
+void add(int n, int* src, int* dst) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
 		dst[index] = (int)pow((double)src[index], (double)dst[index]);
 	}
 }
 
-class VecPowKernel : public Kernel {
+class VecAddKernel : public Kernel {
 public:
 
-	VecPowKernel() {
+	VecAddKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
 		cudaMallocHost(&srcHost, dataSize * sizeof(int));
@@ -60,7 +60,7 @@ public:
 		std::cout << "Data initialized" << std::endl;
 	}
 
-	~VecPowKernel() {
+	~VecAddKernel() {
 		cudaFree(dst);
 		cudaFree(src);
 
@@ -79,7 +79,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		Pow<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
+		add<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
 		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
@@ -110,7 +110,7 @@ public:
 };
 
 TEST_P(VectorPowFixture, hybrid) {
-	VecPowKernel kernel;
+	VecAddKernel kernel;
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -184,7 +184,7 @@ TEST(VectorPow, gpu) {
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	Pow << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src, dst);
+	add << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src, dst);
 	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();

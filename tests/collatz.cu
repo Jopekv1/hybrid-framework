@@ -6,65 +6,51 @@
 #include <chrono>
 #include <cmath>
 
-constexpr uint64_t dataSize = 100000000;
-
-void verify(int* dst, int size) {
-	std::cout << "Veryfying data..." << std::endl;
-	bool correct = true;
-	int errCnt = 0;
-	for (uint64_t i = 0; i < size; i++) {
-		if (dst[i] != 5764801) {
-			correct = false;
-			errCnt++;
-			//std::cout << i << std::endl;
-		}
-	}
-	if (correct) {
-		std::cout << "Results correct" << std::endl;
-	}
-	else {
-		std::cout << "!!!!! ERROR !!!!!" << std::endl;
-	}
-}
+constexpr uint64_t dataSize = 1000000000;
 
 __global__
-void Pow(int n, int* src, int* dst) {
+void collatz(int n, int* src) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
-		dst[index] = (int)pow((double)src[index], (double)dst[index]);
+		int counter = 0;
+		int value = index;
+		while (value > 1) {
+			if (value % 2 == 0) {
+				value = value / 2;
+			}
+			else {
+				value = 3 * value + 1;
+			}
+			counter++;
+		}
+		src[index] = counter;
 	}
 }
 
-class VecPowKernel : public Kernel {
+class CollatzKernel : public Kernel {
 public:
 
-	VecPowKernel() {
+	CollatzKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
 		cudaMallocHost(&srcHost, dataSize * sizeof(int));
-		cudaMallocHost(&dstHost, dataSize * sizeof(int));
 
 		cudaMalloc(&src, dataSize * sizeof(int));
-		cudaMalloc(&dst, dataSize * sizeof(int));
 
 		for (uint64_t i = 0; i < dataSize; i++) {
-			srcHost[i] = 7;
-			dstHost[i] = 8;
+			srcHost[i] = 0;
 		}
 
 		cudaStreamCreate(&ownStream);
 
 		cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		cudaMemcpyAsync(dst, dstHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
-	~VecPowKernel() {
-		cudaFree(dst);
+	~CollatzKernel() {
 		cudaFree(src);
 
-		cudaFreeHost(dstHost);
 		cudaFreeHost(srcHost);
 
 		cudaStreamDestroy(ownStream);
@@ -72,26 +58,35 @@ public:
 
 	void runCpu(int workItemId, int workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
-			dstHost[i] = (int)pow((double)srcHost[i], (double)dstHost[i]);
+			int counter = 0;
+			int value = i;
+			while (value > 1) {
+				if (value % 2 == 0) {
+					value = value / 2;
+				}
+				else {
+					value = 3 * value + 1;
+				}
+				counter++;
+			}
+			srcHost[i] = counter;
 		}
 	};
 
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		Pow<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
-		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
+		collatz << <numBlocks, blockSize, 0, ownStream >> > (workGroupSize, src + workItemId);
+		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
 	int* src = nullptr;
-	int* dst = nullptr;
 	int* srcHost = nullptr;
-	int* dstHost = nullptr;
 
 	cudaStream_t ownStream;
 };
 
-class VectorPowFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
+class CollatzFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
 public:
 
 	void SetUp() override {
@@ -109,8 +104,8 @@ public:
 	int numThreads = 0;
 };
 
-TEST_P(VectorPowFixture, hybrid) {
-	VecPowKernel kernel;
+TEST_P(CollatzFixture, hybrid) {
+	CollatzKernel kernel;
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -120,8 +115,6 @@ TEST_P(VectorPowFixture, hybrid) {
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
-
-	verify(kernel.dstHost, dataSize);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -145,38 +138,32 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(VectorPow,
-	VectorPowFixture,
+INSTANTIATE_TEST_SUITE_P(Collatz,
+	CollatzFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),
 		::testing::ValuesIn(gpuWorkGroupsValues),
 		::testing::ValuesIn(numThreadsValues)));
 
-TEST(VectorPow, gpu) {
+TEST(Collatz, gpu) {
 	std::cout << "Initializing data..." << std::endl;
 
 	int* src = nullptr;
-	int* dst = nullptr;
 	int* srcHost = nullptr;
-	int* dstHost = nullptr;
 
 	cudaStream_t ownStream;
 
 	cudaMallocHost(&srcHost, dataSize * sizeof(int));
-	cudaMallocHost(&dstHost, dataSize * sizeof(int));
 
 	cudaMalloc(&src, dataSize * sizeof(int));
-	cudaMalloc(&dst, dataSize * sizeof(int));
 
 	for (uint64_t i = 0; i < dataSize; i++) {
-		srcHost[i] = 7;
-		dstHost[i] = 8;
+		srcHost[i] = 0;
 	}
 
 	cudaStreamCreate(&ownStream);
 
 	cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-	cudaMemcpyAsync(dst, dstHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 
 	std::cout << "Data initialized" << std::endl;
 
@@ -184,20 +171,16 @@ TEST(VectorPow, gpu) {
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	Pow << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src, dst);
-	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
+	collatz << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src);
+	cudaMemcpyAsync(srcHost, src, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	verify(dstHost, dataSize);
-
-	cudaFree(dst);
 	cudaFree(src);
 
-	cudaFreeHost(dstHost);
 	cudaFreeHost(srcHost);
 
 	cudaStreamDestroy(ownStream);
