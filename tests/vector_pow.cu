@@ -77,7 +77,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		add << <numBlocks, blockSize, 0, ownStream >> > (workGroupSize, src + workItemId, dst + workItemId);
+		add<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
 		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
@@ -183,7 +183,7 @@ TEST(VectorPow, gpu) {
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	add << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src, dst);
+	add<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, dst);
 	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();

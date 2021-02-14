@@ -49,7 +49,7 @@ void collatz(int n, int* src, int offset) {
 			else {
 				value = (3 * value + 1);
 			}
-			counter = counter +1;
+			counter = counter + 1;
 		}
 		src[index] = counter;
 	}
@@ -104,7 +104,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		collatz << <numBlocks, blockSize, 0, ownStream >> > (workGroupSize, src + workItemId, workItemId);
+		collatz<<<numBlocks, blockSize, 0, ownStream >>>(workGroupSize, src + workItemId, workItemId);
 		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
