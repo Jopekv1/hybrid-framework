@@ -35,14 +35,18 @@ public:
 		std::cout << "Initializing data..." << std::endl;
 
 		srcHost.resize(dataSize);
+		src.resize(dataSize);
 		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
 
-		src = srcHost;
+		cudaStreamCreate(&ownStream);
+		thrust::cuda::par.on(ownStream);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
-	~MaxElementKernel() = default;
+	~MaxElementKernel() {
+		cudaStreamDestroy(ownStream);
+	};
 
 	void runCpu(int workItemId, int workGroupSize) override {
 		auto max = std::max_element(srcHost.begin() + workItemId, srcHost.begin() + workItemId + workGroupSize);
@@ -50,6 +54,7 @@ public:
 	};
 
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
+		cudaMemcpyAsync(thrust::raw_pointer_cast(src.data() + workItemId), thrust::raw_pointer_cast(srcHost.data() + workItemId), workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 		auto max = thrust::max_element(src.begin() + workItemId, src.begin() + workItemId + workGroupSize);
 		updateMax(*max);
 	};
@@ -65,6 +70,8 @@ public:
 
 	thrust::host_vector<int> srcHost;
 	thrust::device_vector<int> src;
+
+	cudaStream_t ownStream;
 
 	std::vector<int> dst;
 	std::mutex dstMutex;
@@ -141,12 +148,13 @@ TEST(MaxElement, gpu) {
 	thrust::host_vector<int> srcHost(dataSize);
 	thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
 
-	thrust::device_vector<int> src = srcHost;
+	thrust::device_vector<int> src;
 
 	std::cout << "Data initialized" << std::endl;
 
 	auto start = std::chrono::steady_clock::now();
 
+	src = srcHost;
 	auto max = thrust::max_element(src.begin(), src.end());
 
 	auto end = std::chrono::steady_clock::now();

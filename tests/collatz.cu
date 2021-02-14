@@ -71,8 +71,6 @@ public:
 
 		cudaStreamCreate(&ownStream);
 
-		cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-
 		std::cout << "Data initialized" << std::endl;
 	}
 
@@ -104,6 +102,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
+		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 		collatz<<<numBlocks, blockSize, 0, ownStream >>>(workGroupSize, src + workItemId, workItemId);
 		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
@@ -194,17 +193,18 @@ TEST(Collatz, gpu) {
 
 	cudaStreamCreate(&ownStream);
 
-	cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-
 	std::cout << "Data initialized" << std::endl;
 
 	int blockSize = 1024;
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
+
+	cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 	collatz<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, 0);
 	cudaMemcpyAsync(srcHost, src, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
+
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
