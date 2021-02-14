@@ -8,12 +8,12 @@
 
 constexpr uint64_t dataSize = 1000000000;
 
-__global__
-void collatz(int n, int* src) {
-	int index = threadIdx.x + blockIdx.x * blockDim.x;
-	if (index < n) {
+void verifyCollatz(int* dst) {
+	std::cout << "Veryfying data..." << std::endl;
+	bool correct = true;
+	for (uint64_t i = 0; i < dataSize; i++) {
 		int counter = 0;
-		int value = index;
+		int value = i;
 		while (value > 1) {
 			if (value % 2 == 0) {
 				value = value / 2;
@@ -22,6 +22,34 @@ void collatz(int n, int* src) {
 				value = 3 * value + 1;
 			}
 			counter++;
+		}
+		if (dst[i] != counter) {
+			correct = false;
+		}
+	}
+	if (correct) {
+		std::cout << "Results correct" << std::endl;
+	}
+	else {
+		std::cout << "!!!!! ERROR !!!!!" << std::endl;
+		throw std::exception();
+	}
+}
+
+__global__
+void collatz(int n, int* src, int offset) {
+	int index = threadIdx.x + blockIdx.x * blockDim.x;
+	if (index < n) {
+		int counter = 0;
+		int value = index + offset;
+		while (value > 1) {
+			if ((value % 2) == 0) {
+				value = (value / 2);
+			}
+			else {
+				value = (3 * value + 1);
+			}
+			counter = counter +1;
 		}
 		src[index] = counter;
 	}
@@ -76,7 +104,7 @@ public:
 	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		collatz << <numBlocks, blockSize, 0, ownStream >> > (workGroupSize, src + workItemId);
+		collatz << <numBlocks, blockSize, 0, ownStream >> > (workGroupSize, src + workItemId, workItemId);
 		cudaMemcpyAsync(srcHost + workItemId, src + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	};
 
@@ -96,6 +124,7 @@ public:
 
 		if (gpuWorkGroups * workGroupSize >= dataSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+			//GTEST_SKIP();
 		}
 	}
 
@@ -115,6 +144,8 @@ TEST_P(CollatzFixture, hybrid) {
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyCollatz(kernel.srcHost);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -171,13 +202,15 @@ TEST(Collatz, gpu) {
 	int numBlocks = (dataSize + blockSize - 1) / blockSize;
 
 	auto start = std::chrono::steady_clock::now();
-	collatz << <numBlocks, blockSize, 0, ownStream >> > (dataSize, src);
+	collatz<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, 0);
 	cudaMemcpyAsync(srcHost, src, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
 	cudaDeviceSynchronize();
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyCollatz(srcHost);
 
 	cudaFree(src);
 

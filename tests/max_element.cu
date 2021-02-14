@@ -16,6 +16,18 @@
 
 constexpr uint64_t dataSize = 100000000;
 
+void verifyMaxElement(thrust::host_vector<int>& host, int max) {
+	std::cout << "Veryfying data..." << std::endl;
+	auto maxExpected = std::max_element(host.begin(), host.end());
+	if (max != *maxExpected) {
+		std::cout << "!!!!! ERROR !!!!!" << std::endl;
+		throw std::exception();
+	}
+	else {
+		std::cout << "Results correct" << std::endl;
+	}
+}
+
 class MaxElementKernel : public Kernel {
 public:
 
@@ -23,6 +35,8 @@ public:
 		std::cout << "Initializing data..." << std::endl;
 
 		srcHost.resize(dataSize);
+		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
+
 		src = srcHost;
 
 		std::cout << "Data initialized" << std::endl;
@@ -66,6 +80,7 @@ public:
 
 		if (gpuWorkGroups * workGroupSize >= dataSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+			//GTEST_SKIP();
 		}
 	}
 
@@ -86,10 +101,10 @@ TEST_P(MaxElementFixture, hybrid) {
 
 	auto end = std::chrono::steady_clock::now();
 
-	std::cout << "Max element is: " << max << std::endl;
-
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyMaxElement(kernel.srcHost, max);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -136,8 +151,8 @@ TEST(MaxElement, gpu) {
 
 	auto end = std::chrono::steady_clock::now();
 
-	std::cout << "Max element is: " << *max << std::endl;
-
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyMaxElement(srcHost, *max);
 }
