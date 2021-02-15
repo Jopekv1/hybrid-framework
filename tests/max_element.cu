@@ -112,6 +112,10 @@ TEST_P(MaxElementFixture, hybrid) {
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
 	//verifyMaxElement(kernel.srcHost, max);
+
+	auto hybridFile = fopen("results_hybrid.txt", "a");
+	fprintf(hybridFile, "MaxElement %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fclose(hybridFile);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -162,5 +166,9 @@ TEST(MaxElement, gpu) {
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyMaxElement(srcHost, *max);
+	//verifyMaxElement(srcHost, *max);	
+
+	auto gpuFile = fopen("results_gpu.txt", "a");
+	fprintf(gpuFile, "MaxElement %Lf\n", elapsed_seconds.count());
+	fclose(gpuFile);
 }

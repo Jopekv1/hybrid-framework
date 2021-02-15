@@ -120,6 +120,10 @@ TEST_P(VectorPowFixture, hybrid) {
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
 	//verifyVectorPow(kernel.dstHost);
+
+	auto hybridFile = fopen("results_hybrid.txt", "a");
+	fprintf(hybridFile, "VectorPow %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fclose(hybridFile);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -200,4 +204,8 @@ TEST(VectorPow, gpu) {
 	cudaFreeHost(srcHost);
 
 	cudaStreamDestroy(ownStream);
+
+	auto gpuFile = fopen("results_gpu.txt", "a");
+	fprintf(gpuFile, "VectorPow %Lf\n", elapsed_seconds.count());
+	fclose(gpuFile);
 }

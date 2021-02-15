@@ -145,6 +145,10 @@ TEST_P(CollatzFixture, hybrid) {
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
 	//verifyCollatz(kernel.srcHost);
+
+	auto hybridFile = fopen("results_hybrid.txt", "a");
+	fprintf(hybridFile, "Collatz %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fclose(hybridFile);
 }
 
 static uint64_t workGroupSizesValues[] = {
@@ -217,4 +221,9 @@ TEST(Collatz, gpu) {
 	cudaFreeHost(srcHost);
 
 	cudaStreamDestroy(ownStream);
+
+
+	auto gpuFile = fopen("results_gpu.txt", "a");
+	fprintf(gpuFile, "Collatz %Lf\n", elapsed_seconds.count());
+	fclose(gpuFile);
 }
