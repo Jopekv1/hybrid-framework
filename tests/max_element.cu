@@ -14,7 +14,8 @@
 #include <algorithm>
 #include <mutex>
 
-constexpr uint64_t dataSize = 100000000;
+constexpr uint64_t dataSize = 2684353186;
+constexpr uint64_t gpuAllocSize = 1073741824;
 
 void verifyMaxElement(thrust::host_vector<int>& host, int max) {
 	std::cout << "Veryfying data..." << std::endl;
@@ -35,7 +36,7 @@ public:
 		std::cout << "Initializing data..." << std::endl;
 
 		srcHost.resize(dataSize);
-		src.resize(dataSize);
+		src.resize(gpuAllocSize);
 		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
 
 		cudaStreamCreate(&ownStream);
@@ -54,9 +55,25 @@ public:
 	};
 
 	void runGpu(uint64_t deviceId, uint64_t workItemId, uint64_t workGroupSize) override {
-		cudaMemcpyAsync(thrust::raw_pointer_cast(src.data() + workItemId), thrust::raw_pointer_cast(srcHost.data() + workItemId), workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		auto max = thrust::max_element(src.begin() + workItemId, src.begin() + workItemId + workGroupSize);
-		updateMax(*max);
+		uint64_t i = 0;
+		while (i < workGroupSize) {
+			auto size = gpuAllocSize;
+			if (i + gpuAllocSize > workGroupSize) {
+				size = workGroupSize - i;
+			}
+
+			int blockSize = 1024;
+			int numBlocks = (size + blockSize - 1) / blockSize;
+
+			cudaMemcpyAsync(thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(srcHost.data() + workItemId + i), size * sizeof(int), cudaMemcpyHostToDevice, ownStream);
+			auto max = thrust::max_element(src.begin(), src.begin() + size);
+			updateMax(*max);
+
+			i += size;
+		}
+		//cudaMemcpyAsync(thrust::raw_pointer_cast(src.data() + workItemId), thrust::raw_pointer_cast(srcHost.data() + workItemId), workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
+		//auto max = thrust::max_element(src.begin() + workItemId, src.begin() + workItemId + workGroupSize);
+		//updateMax(*max);
 	};
 
 	void updateMax(int max) {
@@ -88,6 +105,10 @@ public:
 		if (gpuWorkGroups * workGroupSize >= dataSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			//GTEST_SKIP();
+		}
+		if (gpuWorkGroups * workGroupSize >= gpuAllocSize) {
+			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+			GTEST_SKIP();
 		}
 	}
 
@@ -147,26 +168,19 @@ INSTANTIATE_TEST_SUITE_P(MaxElement,
 		::testing::ValuesIn(numThreadsValues)));
 
 TEST(MaxElement, gpu) {
-	std::cout << "Initializing data..." << std::endl;
-
-	thrust::host_vector<int> srcHost(dataSize);
-	thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
-
-	thrust::device_vector<int> src;
-
-	std::cout << "Data initialized" << std::endl;
+	MaxElementKernel kernel;
 
 	auto start = std::chrono::steady_clock::now();
 
-	src = srcHost;
-	auto max = thrust::max_element(src.begin(), src.end());
+	kernel.runGpu(0u, 0u, dataSize);
+	auto max = kernel.merge();
 
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyMaxElement(srcHost, *max);	
+	//verifyMaxElement(kernel.srcHost, max);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
 	fprintf(gpuFile, "MaxElement %Lf\n", elapsed_seconds.count());
