@@ -65,13 +65,13 @@ public:
 		cudaStreamDestroy(ownStream);
 	}
 
-	void runCpu(int workItemId, int workGroupSize) override {
+	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
 			dstHost[i] = (int)pow((double)srcHost[i], (double)dstHost[i]);
 		}
 	};
 
-	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
+	void runGpu(uint64_t deviceId, uint64_t workItemId, uint64_t workGroupSize) override {
 		int blockSize = 1024;
 		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
 		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);

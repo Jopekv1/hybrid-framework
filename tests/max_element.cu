@@ -48,12 +48,12 @@ public:
 		cudaStreamDestroy(ownStream);
 	};
 
-	void runCpu(int workItemId, int workGroupSize) override {
+	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
 		auto max = std::max_element(srcHost.begin() + workItemId, srcHost.begin() + workItemId + workGroupSize);
 		updateMax(*max);
 	};
 
-	void runGpu(int deviceId, int workItemId, int workGroupSize) override {
+	void runGpu(uint64_t deviceId, uint64_t workItemId, uint64_t workGroupSize) override {
 		cudaMemcpyAsync(thrust::raw_pointer_cast(src.data() + workItemId), thrust::raw_pointer_cast(srcHost.data() + workItemId), workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 		auto max = thrust::max_element(src.begin() + workItemId, src.begin() + workItemId + workGroupSize);
 		updateMax(*max);
