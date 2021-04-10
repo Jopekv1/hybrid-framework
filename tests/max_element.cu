@@ -71,9 +71,6 @@ public:
 
 			i += size;
 		}
-		//cudaMemcpyAsync(thrust::raw_pointer_cast(src.data() + workItemId), thrust::raw_pointer_cast(srcHost.data() + workItemId), workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		//auto max = thrust::max_element(src.begin() + workItemId, src.begin() + workItemId + workGroupSize);
-		//updateMax(*max);
 	};
 
 	void updateMax(int max) {
@@ -108,7 +105,7 @@ public:
 		}
 		if (gpuWorkGroups * workGroupSize >= gpuAllocSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-			GTEST_SKIP();
+			//GTEST_SKIP();
 		}
 	}
 

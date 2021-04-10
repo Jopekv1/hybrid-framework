@@ -140,7 +140,7 @@ public:
 		}
 		if (gpuWorkGroups * workGroupSize >= gpuAllocSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
-			GTEST_SKIP();
+			//GTEST_SKIP();
 		}
 	}
 

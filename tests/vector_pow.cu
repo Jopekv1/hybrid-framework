@@ -4,15 +4,21 @@
 #include <gtest/gtest.h>
 #include <cuda_runtime.h>
 #include <chrono>
+#include <random>
 #include <cmath>
 
-constexpr uint64_t dataSize = 100000000;
+constexpr uint64_t dataSize = 2684353186 / 4;
+constexpr uint64_t gpuAllocSize = 1073741824 / 4;
 
-void verifyVectorPow(int* dst) {
+const double e = std::exp(1.0);
+
+void verifyVectorPow(double* dst, double* src) {
 	std::cout << "Veryfying data..." << std::endl;
 	bool correct = true;
 	for (uint64_t i = 0; i < dataSize; i++) {
-		if (dst[i] != 5764801) {
+		auto expercted = pow(src[i], e);
+		auto value = dst[i];
+		if (value < expercted - 0.01 || value > expercted + 0.01) {
 			correct = false;
 		}
 	}
@@ -26,28 +32,33 @@ void verifyVectorPow(int* dst) {
 }
 
 __global__
-void add(int n, int* src, int* dst) {
+void pow(int n, double* src, double* dst, double e) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
-		dst[index] = (int)pow((double)src[index], (double)dst[index]);
+		dst[index] = pow(src[index], e);
 	}
 }
 
-class VecAddKernel : public Kernel {
+class VecPowKernel : public Kernel {
 public:
 
-	VecAddKernel() {
+	VecPowKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
-		cudaMallocHost(&srcHost, dataSize * sizeof(int));
-		cudaMallocHost(&dstHost, dataSize * sizeof(int));
+		cudaMallocHost(&srcHost, dataSize * sizeof(double));
+		cudaMallocHost(&dstHost, dataSize * sizeof(double));
 
-		cudaMalloc(&src, dataSize * sizeof(int));
-		cudaMalloc(&dst, dataSize * sizeof(int));
+		cudaMalloc(&src, gpuAllocSize * sizeof(double));
+		cudaMalloc(&dst, gpuAllocSize * sizeof(double));
+
+		double lower_bound = 0;
+		double upper_bound = 100000;
+		std::uniform_real_distribution<double> distribution(lower_bound, upper_bound);
+		std::default_random_engine randomEngine;
 
 		for (uint64_t i = 0; i < dataSize; i++) {
-			srcHost[i] = 7;
-			dstHost[i] = 8;
+			srcHost[i] = distribution(randomEngine);
+			dstHost[i] = 0;
 		}
 
 		cudaStreamCreate(&ownStream);
@@ -55,7 +66,7 @@ public:
 		std::cout << "Data initialized" << std::endl;
 	}
 
-	~VecAddKernel() {
+	~VecPowKernel() {
 		cudaFree(dst);
 		cudaFree(src);
 
@@ -67,23 +78,34 @@ public:
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
 		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
-			dstHost[i] = (int)pow((double)srcHost[i], (double)dstHost[i]);
+			dstHost[i] = pow(srcHost[i], e);
 		}
 	};
 
 	void runGpu(uint64_t deviceId, uint64_t workItemId, uint64_t workGroupSize) override {
-		int blockSize = 1024;
-		int numBlocks = (workGroupSize + blockSize - 1) / blockSize;
-		cudaMemcpyAsync(src + workItemId, srcHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		cudaMemcpyAsync(dst + workItemId, dstHost + workItemId, workGroupSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-		add<<<numBlocks, blockSize, 0, ownStream>>>(workGroupSize, src + workItemId, dst + workItemId);
-		cudaMemcpyAsync(dstHost + workItemId, dst + workItemId, workGroupSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
+		uint64_t i = 0;
+		while (i < workGroupSize) {
+			auto size = gpuAllocSize;
+			if (i + gpuAllocSize > workGroupSize) {
+				size = workGroupSize - i;
+			}
+
+			int blockSize = 1024;
+			int numBlocks = (size + blockSize - 1) / blockSize;
+
+			cudaMemcpyAsync(src, srcHost + workItemId + i, size * sizeof(double), cudaMemcpyHostToDevice, ownStream);
+			pow<<<numBlocks, blockSize, 0, ownStream>>>(size, src, dst, e);
+			cudaMemcpyAsync(dstHost + workItemId + i, dst, size * sizeof(double), cudaMemcpyDeviceToHost, ownStream);
+			cudaStreamSynchronize(ownStream);
+
+			i += size;
+		}
 	};
 
-	int* src = nullptr;
-	int* dst = nullptr;
-	int* srcHost = nullptr;
-	int* dstHost = nullptr;
+	double* src = nullptr;
+	double* dst = nullptr;
+	double* srcHost = nullptr;
+	double* dstHost = nullptr;
 
 	cudaStream_t ownStream;
 };
@@ -100,6 +122,10 @@ public:
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			//GTEST_SKIP();
 		}
+		if (gpuWorkGroups * workGroupSize >= gpuAllocSize) {
+			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+			//GTEST_SKIP();
+		}
 	}
 
 	uint64_t workGroupSize = 0;
@@ -108,7 +134,7 @@ public:
 };
 
 TEST_P(VectorPowFixture, hybrid) {
-	VecAddKernel kernel;
+	VecPowKernel kernel;
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -119,7 +145,7 @@ TEST_P(VectorPowFixture, hybrid) {
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyVectorPow(kernel.dstHost);
+	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
 	fprintf(hybridFile, "VectorPow %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
@@ -155,55 +181,18 @@ INSTANTIATE_TEST_SUITE_P(VectorPow,
 		::testing::ValuesIn(numThreadsValues)));
 
 TEST(VectorPow, gpu) {
-	std::cout << "Initializing data..." << std::endl;
-
-	int* src = nullptr;
-	int* dst = nullptr;
-	int* srcHost = nullptr;
-	int* dstHost = nullptr;
-
-	cudaStream_t ownStream;
-
-	cudaMallocHost(&srcHost, dataSize * sizeof(int));
-	cudaMallocHost(&dstHost, dataSize * sizeof(int));
-
-	cudaMalloc(&src, dataSize * sizeof(int));
-	cudaMalloc(&dst, dataSize * sizeof(int));
-
-	for (uint64_t i = 0; i < dataSize; i++) {
-		srcHost[i] = 7;
-		dstHost[i] = 8;
-	}
-
-	cudaStreamCreate(&ownStream);
-
-	std::cout << "Data initialized" << std::endl;
-
-	int blockSize = 1024;
-	int numBlocks = (dataSize + blockSize - 1) / blockSize;
+	VecPowKernel kernel;
 
 	auto start = std::chrono::steady_clock::now();
 
-	cudaMemcpyAsync(src, srcHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-	cudaMemcpyAsync(dst, dstHost, dataSize * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-	add<<<numBlocks, blockSize, 0, ownStream>>>(dataSize, src, dst);
-	cudaMemcpyAsync(dstHost, dst, dataSize * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
-	cudaDeviceSynchronize();
+	kernel.runGpu(0u, 0u, dataSize);
 
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyVectorPow(dstHost);
-
-	cudaFree(dst);
-	cudaFree(src);
-
-	cudaFreeHost(dstHost);
-	cudaFreeHost(srcHost);
-
-	cudaStreamDestroy(ownStream);
+	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
 	fprintf(gpuFile, "VectorPow %Lf\n", elapsed_seconds.count());
