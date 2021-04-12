@@ -7,70 +7,45 @@
 #include <random>
 #include <cmath>
 
-constexpr uint64_t dataSize = 2684353186 / 4;
-constexpr uint64_t gpuAllocSize = 1073741824 / 4;
+#define SERIES 50
+
+constexpr uint64_t dataSize = 2684353186 / 2;
+constexpr uint64_t gpuAllocSize = 1073741824 / 2;
 
 const double e = std::exp(1.0);
 
-void verifyVectorPow(double* dst, double* src) {
-	std::cout << "Veryfying data..." << std::endl;
-	bool correct = true;
-	for (uint64_t i = 0; i < dataSize; i++) {
-		auto expercted = pow(src[i], e);
-		auto value = dst[i];
-		if (value < expercted - 0.01 || value > expercted + 0.01) {
-			correct = false;
-		}
-	}
-	if (correct) {
-		std::cout << "Results correct" << std::endl;
-	}
-	else {
-		std::cout << "!!!!! ERROR !!!!!" << std::endl;
-		throw std::exception();
-	}
-}
-
 __global__
-void pow(uint64_t n, double* src, double* dst, double e) {
+void math(uint64_t n, double* src, double e, uint64_t offset) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
-		dst[index] = pow(src[index], e);
+		uint64_t i = index + offset;
+		double sum = 0.0;
+		for (int j = 0; j < SERIES; j++) {
+			double x = pow(-1.0, double(j)) * pow(double(i), 2.0 * j + 1) / (2 * i + 1);
+			sum += x;
+		}
+		src[index] = sum;
 	}
 }
 
-class VecPowKernel : public Kernel {
+class MathKernel : public Kernel {
 public:
 
-	VecPowKernel() {
+	MathKernel() {
 		std::cout << "Initializing data..." << std::endl;
 
 		cudaMallocHost(&srcHost, dataSize * sizeof(double));
-		cudaMallocHost(&dstHost, dataSize * sizeof(double));
 
 		cudaMalloc(&src, gpuAllocSize * sizeof(double));
-		cudaMalloc(&dst, gpuAllocSize * sizeof(double));
-
-		double lower_bound = 0;
-		double upper_bound = 100000;
-		std::uniform_real_distribution<double> distribution(lower_bound, upper_bound);
-		std::default_random_engine randomEngine;
-
-		for (uint64_t i = 0; i < dataSize; i++) {
-			srcHost[i] = distribution(randomEngine);
-			dstHost[i] = 0;
-		}
 
 		cudaStreamCreate(&ownStream);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
-	~VecPowKernel() {
-		cudaFree(dst);
+	~MathKernel() {
 		cudaFree(src);
 
-		cudaFreeHost(dstHost);
 		cudaFreeHost(srcHost);
 
 		cudaStreamDestroy(ownStream);
@@ -78,7 +53,12 @@ public:
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
 		for (uint64_t i = workItemId; i < workItemId + workGroupSize; i++) {
-			dstHost[i] = pow(srcHost[i], e);
+			double sum = 0.0;
+			for (int j = 0; j < SERIES; j++) {
+				double x = pow(-1, j) * pow(i, 2 * j + 1) / (2 * i + 1);
+				sum += x;
+			}
+			srcHost[i] = sum;
 		}
 	};
 
@@ -93,9 +73,8 @@ public:
 			int blockSize = 1024;
 			int numBlocks = int((size + blockSize - 1) / blockSize);
 
-			cudaMemcpyAsync(src, srcHost + workItemId + i, size * sizeof(double), cudaMemcpyHostToDevice, ownStream);
-			pow<<<numBlocks, blockSize, 0, ownStream>>>(size, src, dst, e);
-			cudaMemcpyAsync(dstHost + workItemId + i, dst, size * sizeof(double), cudaMemcpyDeviceToHost, ownStream);
+			math << <numBlocks, blockSize, 0, ownStream >> > (size, src, e, workItemId + i);
+			cudaMemcpyAsync(srcHost + workItemId + i, src, size * sizeof(double), cudaMemcpyDeviceToHost, ownStream);
 			cudaStreamSynchronize(ownStream);
 
 			i += size;
@@ -103,14 +82,12 @@ public:
 	};
 
 	double* src = nullptr;
-	double* dst = nullptr;
 	double* srcHost = nullptr;
-	double* dstHost = nullptr;
 
 	cudaStream_t ownStream;
 };
 
-class VectorPowFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
+class MathFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
 public:
 
 	void SetUp() override {
@@ -133,8 +110,8 @@ public:
 	int numThreads = 0;
 };
 
-TEST_P(VectorPowFixture, hybrid) {
-	VecPowKernel kernel;
+TEST_P(MathFixture, hybrid) {
+	MathKernel kernel;
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -145,10 +122,8 @@ TEST_P(VectorPowFixture, hybrid) {
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
-
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "VectorPow %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "Math %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
 
@@ -173,15 +148,15 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(VectorPow,
-	VectorPowFixture,
+INSTANTIATE_TEST_SUITE_P(Math,
+	MathFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),
 		::testing::ValuesIn(gpuWorkGroupsValues),
 		::testing::ValuesIn(numThreadsValues)));
 
-TEST(VectorPow, gpu) {
-	VecPowKernel kernel;
+TEST(Math, gpu) {
+	MathKernel kernel;
 
 	auto start = std::chrono::steady_clock::now();
 
@@ -192,9 +167,7 @@ TEST(VectorPow, gpu) {
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
-
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "VectorPow %Lf\n", elapsed_seconds.count());
+	fprintf(gpuFile, "Math %Lf\n", elapsed_seconds.count());
 	fclose(gpuFile);
 }

@@ -62,9 +62,6 @@ public:
 				size = workGroupSize - i;
 			}
 
-			int blockSize = 1024;
-			int numBlocks = (size + blockSize - 1) / blockSize;
-
 			cudaMemcpyAsync(thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(srcHost.data() + workItemId + i), size * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 			auto max = thrust::max_element(src.begin(), src.begin() + size);
 			updateMax(*max);

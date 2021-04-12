@@ -14,7 +14,7 @@ void verifyCollatz(int* dst) {
 	bool correct = true;
 	for (uint64_t i = 0; i < dataSize; i++) {
 		int counter = 0;
-		int value = i;
+		uint64_t value = i;
 		while (value > 1) {
 			if (value % 2 == 0) {
 				value = value / 2;
@@ -38,11 +38,11 @@ void verifyCollatz(int* dst) {
 }
 
 __global__
-void collatz(int n, int* src, int offset) {
+void collatz(uint64_t n, int* src, uint64_t offset) {
 	int index = threadIdx.x + blockIdx.x * blockDim.x;
 	if (index < n) {
 		int counter = 0;
-		int value = index + offset;
+		uint64_t value = index + offset;
 		while (value > 1) {
 			if ((value % 2) == 0) {
 				value = (value / 2);
@@ -66,10 +66,6 @@ public:
 
 		cudaMalloc(&src, gpuAllocSize * sizeof(int));
 
-		for (uint64_t i = 0; i < dataSize; i++) {
-			srcHost[i] = 0;
-		}
-
 		cudaStreamCreate(&ownStream);
 
 		std::cout << "Data initialized" << std::endl;
@@ -84,9 +80,9 @@ public:
 	}
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
-		for (int i = workItemId; i < workItemId + workGroupSize; i++) {
+		for (uint64_t i = workItemId; i < workItemId + workGroupSize; i++) {
 			int counter = 0;
-			int value = i;
+			uint64_t value = i;
 			while (value > 1) {
 				if (value % 2 == 0) {
 					value = value / 2;
@@ -109,7 +105,7 @@ public:
 			}
 
 			int blockSize = 1024;
-			int numBlocks = (size + blockSize - 1) / blockSize;
+			int numBlocks = int((size + blockSize - 1) / blockSize);
 
 			cudaMemcpyAsync(src, srcHost + workItemId + i, size * sizeof(int), cudaMemcpyHostToDevice, ownStream);
 			collatz<<<numBlocks, blockSize, 0, ownStream>>>(size, src, workItemId + i);
