@@ -13,8 +13,8 @@
 #include <chrono>
 #include <algorithm>
 #include <mutex>
+#include <random>
 
-constexpr uint64_t dataSize = 2684353186;
 constexpr uint64_t gpuAllocSize = 1073741824;
 
 void verifyMaxElement(thrust::host_vector<int>& host, int max) {
@@ -32,12 +32,18 @@ void verifyMaxElement(thrust::host_vector<int>& host, int max) {
 class MaxElementKernel : public Kernel {
 public:
 
-	MaxElementKernel() {
+	MaxElementKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
 		srcHost.resize(dataSize);
 		src.resize(gpuAllocSize);
-		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
+
+		std::uniform_int_distribution<int> distribution(1, 1000000);
+		std::default_random_engine randomEngine;
+
+		for (uint64_t i = 0; i < dataSize; i++) {
+			srcHost[i] = distribution(randomEngine);
+		}
 
 		cudaStreamCreate(&ownStream);
 		thrust::cuda::par.on(ownStream);
@@ -88,13 +94,13 @@ public:
 	std::mutex dstMutex;
 };
 
-class MaxElementFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
+class MaxElementFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, uint64_t, int>> {
 public:
 
 	void SetUp() override {
-		std::tie(workGroupSize, gpuWorkGroups, numThreads) = GetParam();
+		std::tie(dataSize, workGroupSize, gpuWorkGroups, numThreads) = GetParam();
 
-		std::cout << "Test params: workGroupSize: " << workGroupSize << ", gpuWorkGroups: " << gpuWorkGroups << ", numThread: " << numThreads << std::endl;
+		std::cout << "Test params: dataSize: " << dataSize << ", workGroupSize: " << workGroupSize << ", gpuWorkGroups: " << gpuWorkGroups << ", numThread: " << numThreads << std::endl;
 
 		if (gpuWorkGroups * workGroupSize >= dataSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
@@ -104,15 +110,26 @@ public:
 			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			//GTEST_SKIP();
 		}
+
+		if (!((workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+			(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
+			(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8))) {
+			GTEST_SKIP();
+		}
 	}
 
+	uint64_t dataSize = 0;
 	uint64_t workGroupSize = 0;
 	uint64_t gpuWorkGroups = 0;
 	int numThreads = 0;
 };
 
 TEST_P(MaxElementFixture, hybrid) {
-	MaxElementKernel kernel;
+	MaxElementKernel kernel(dataSize);
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -129,9 +146,17 @@ TEST_P(MaxElementFixture, hybrid) {
 	//verifyMaxElement(kernel.srcHost, max);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "MaxElement %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "MaxElement %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
+
+static uint64_t dataSizes[] = {
+	1342177280,
+	2684354560,
+	5368709120,
+	8053063680,
+	10737418240,
+	13421772800, };
 
 static uint64_t workGroupSizesValues[] = {
 	10,
@@ -154,15 +179,26 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(Packages,
+INSTANTIATE_TEST_SUITE_P(MaxElement,
 	MaxElementFixture,
 	::testing::Combine(
+		::testing::ValuesIn(dataSizes),
 		::testing::ValuesIn(workGroupSizesValues),
 		::testing::ValuesIn(gpuWorkGroupsValues),
 		::testing::ValuesIn(numThreadsValues)));
 
-TEST(MaxElement, gpu) {
-	MaxElementKernel kernel;
+class MaxElementGpuFixture : public ::testing::TestWithParam<uint64_t> {
+public:
+
+	void SetUp() override {
+		dataSize = GetParam();
+	}
+
+	uint64_t dataSize = 0;
+};
+
+TEST_P(MaxElementGpuFixture, gpu) {
+	MaxElementKernel kernel(dataSize);
 
 	auto start = std::chrono::steady_clock::now();
 
@@ -177,6 +213,10 @@ TEST(MaxElement, gpu) {
 	//verifyMaxElement(kernel.srcHost, max);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "MaxElement %Lf\n", elapsed_seconds.count());
+	fprintf(gpuFile, "MaxElement %llu %Lf\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
+
+INSTANTIATE_TEST_SUITE_P(MaxElementGpu,
+	MaxElementGpuFixture,
+	::testing::ValuesIn(dataSizes));

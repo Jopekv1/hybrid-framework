@@ -7,29 +7,28 @@
 #include <random>
 #include <cmath>
 
-constexpr uint64_t dataSize = 2684353186 / 4;
 constexpr uint64_t gpuAllocSize = 1073741824 / 4;
 
 const double e = std::exp(1.0);
 
-void verifyVectorPow(double* dst, double* src) {
-	std::cout << "Veryfying data..." << std::endl;
-	bool correct = true;
-	for (uint64_t i = 0; i < dataSize; i++) {
-		auto expercted = pow(src[i], e);
-		auto value = dst[i];
-		if (value < expercted - 0.01 || value > expercted + 0.01) {
-			correct = false;
-		}
-	}
-	if (correct) {
-		std::cout << "Results correct" << std::endl;
-	}
-	else {
-		std::cout << "!!!!! ERROR !!!!!" << std::endl;
-		throw std::exception();
-	}
-}
+//void verifyVectorPow(double* dst, double* src) {
+//	std::cout << "Veryfying data..." << std::endl;
+//	bool correct = true;
+//	for (uint64_t i = 0; i < dataSize; i++) {
+//		auto expercted = pow(src[i], e);
+//		auto value = dst[i];
+//		if (value < expercted - 0.01 || value > expercted + 0.01) {
+//			correct = false;
+//		}
+//	}
+//	if (correct) {
+//		std::cout << "Results correct" << std::endl;
+//	}
+//	else {
+//		std::cout << "!!!!! ERROR !!!!!" << std::endl;
+//		throw std::exception();
+//	}
+//}
 
 __global__
 void pow(uint64_t n, double* src, double* dst, double e) {
@@ -42,7 +41,7 @@ void pow(uint64_t n, double* src, double* dst, double e) {
 class VecPowKernel : public Kernel {
 public:
 
-	VecPowKernel() {
+	VecPowKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
 		cudaMallocHost(&srcHost, dataSize * sizeof(double));
@@ -110,13 +109,13 @@ public:
 	cudaStream_t ownStream;
 };
 
-class VectorPowFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, int>> {
+class VectorPowFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, uint64_t, int>> {
 public:
 
 	void SetUp() override {
-		std::tie(workGroupSize, gpuWorkGroups, numThreads) = GetParam();
+		std::tie(dataSize, workGroupSize, gpuWorkGroups, numThreads) = GetParam();
 
-		std::cout << "Test params: workGroupSize: " << workGroupSize << ", gpuWorkGroups: " << gpuWorkGroups << ", numThread: " << numThreads << std::endl;
+		std::cout << "Test params: dataSize: " << dataSize << ", workGroupSize: " << workGroupSize << ", gpuWorkGroups: " << gpuWorkGroups << ", numThread: " << numThreads << std::endl;
 
 		if (gpuWorkGroups * workGroupSize >= dataSize) {
 			std::cout << "!!!!!!!!!!!!!!!!! GPU COVERS WHOLE DATA !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
@@ -126,15 +125,26 @@ public:
 			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			//GTEST_SKIP();
 		}
+
+		if (!((workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+			(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+			(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
+			(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8))) {
+			GTEST_SKIP();
+		}
 	}
 
+	uint64_t dataSize = 0;
 	uint64_t workGroupSize = 0;
 	uint64_t gpuWorkGroups = 0;
 	int numThreads = 0;
 };
 
 TEST_P(VectorPowFixture, hybrid) {
-	VecPowKernel kernel;
+	VecPowKernel kernel(dataSize);
 
 	LoadBalancer balancer(workGroupSize, gpuWorkGroups, numThreads);
 
@@ -148,9 +158,17 @@ TEST_P(VectorPowFixture, hybrid) {
 	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "VectorPow %llu %llu %d %Lf\n", workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "VectorPow %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
+
+static uint64_t dataSizes[] = {
+	1342177280 / 4,
+	2684354560 / 4,
+	5368709120 / 4,
+	8053063680 / 4,
+	10737418240 / 4,
+	13421772800 / 4, };
 
 static uint64_t workGroupSizesValues[] = {
 	10,
@@ -173,15 +191,26 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(Packages,
+INSTANTIATE_TEST_SUITE_P(VectorPow,
 	VectorPowFixture,
 	::testing::Combine(
+		::testing::ValuesIn(dataSizes),
 		::testing::ValuesIn(workGroupSizesValues),
 		::testing::ValuesIn(gpuWorkGroupsValues),
 		::testing::ValuesIn(numThreadsValues)));
 
-TEST(VectorPow, gpu) {
-	VecPowKernel kernel;
+class VectorPowGpuFixture : public ::testing::TestWithParam<uint64_t> {
+public:
+
+	void SetUp() override {
+		dataSize = GetParam();
+	}
+
+	uint64_t dataSize = 0;
+};
+
+TEST_P(VectorPowGpuFixture, gpu) {
+	VecPowKernel kernel(dataSize);
 
 	auto start = std::chrono::steady_clock::now();
 
@@ -195,6 +224,10 @@ TEST(VectorPow, gpu) {
 	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "VectorPow %Lf\n", elapsed_seconds.count());
+	fprintf(gpuFile, "VectorPow %llu %Lf\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
+
+INSTANTIATE_TEST_SUITE_P(VectorPowGpu,
+	VectorPowGpuFixture,
+	::testing::ValuesIn(dataSizes));

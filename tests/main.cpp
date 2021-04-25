@@ -9,8 +9,8 @@ int main(int argc, char** argv) {
 		return 0;
 	}
 
-	fprintf(gpuFile, "Testcase Time\n");
-	fprintf(hybridFile, "Testcase WorkGroupSize GpuWorkGroups NumThreads Time\n");
+	fprintf(gpuFile, "Testcase DataSize Time\n");
+	fprintf(hybridFile, "Testcase DataSize WorkGroupSize GpuWorkGroups NumThreads Time\n");
 
 	fclose(gpuFile);
 	fclose(hybridFile);
