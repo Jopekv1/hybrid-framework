@@ -148,7 +148,7 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(Math,
+INSTANTIATE_TEST_SUITE_P(Packages,
 	MathFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),

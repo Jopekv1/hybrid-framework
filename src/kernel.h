@@ -1,4 +1,5 @@
 #include <vector>
+#include <cstdint>
 
 class Kernel {
 public:

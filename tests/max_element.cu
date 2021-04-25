@@ -154,7 +154,7 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(MaxElement,
+INSTANTIATE_TEST_SUITE_P(Packages,
 	MaxElementFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),

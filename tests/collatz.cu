@@ -185,7 +185,7 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(Collatz,
+INSTANTIATE_TEST_SUITE_P(Packages,
 	CollatzFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),

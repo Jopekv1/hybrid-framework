@@ -173,7 +173,7 @@ static int numThreadsValues[] = {
 	6,
 	8 };
 
-INSTANTIATE_TEST_SUITE_P(VectorPow,
+INSTANTIATE_TEST_SUITE_P(Packages,
 	VectorPowFixture,
 	::testing::Combine(
 		::testing::ValuesIn(workGroupSizesValues),
