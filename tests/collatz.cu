@@ -170,7 +170,7 @@ TEST_P(CollatzFixture, hybrid) {
 	//verifyCollatz(kernel.srcHost);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "Collatz %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "Collatz %llu %llu %llu %d %f\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
 
@@ -234,7 +234,7 @@ TEST_P(CollatzGpuFixture, gpu) {
 	//verifyCollatz(kernel.srcHost);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "Collatz %llu %Lf\n", dataSize, elapsed_seconds.count());
+	fprintf(gpuFile, "Collatz %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
 

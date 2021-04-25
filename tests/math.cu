@@ -133,7 +133,7 @@ TEST_P(MathFixture, hybrid) {
 	std::cout << "Hybrid time: " << elapsed_seconds.count() << "s\n";
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "Math %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "Math %llu %llu %llu %d %f\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
 
@@ -197,7 +197,7 @@ TEST_P(MathGpuFixture, gpu) {
 	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "Math %llu %Lf\n", dataSize, elapsed_seconds.count());
+	fprintf(gpuFile, "Math %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
 

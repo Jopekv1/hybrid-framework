@@ -158,7 +158,7 @@ TEST_P(VectorPowFixture, hybrid) {
 	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "VectorPow %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "VectorPow %llu %llu %llu %d %f\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
 
@@ -224,7 +224,7 @@ TEST_P(VectorPowGpuFixture, gpu) {
 	//verifyVectorPow(kernel.dstHost, kernel.srcHost);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "VectorPow %llu %Lf\n", dataSize, elapsed_seconds.count());
+	fprintf(gpuFile, "VectorPow %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
 

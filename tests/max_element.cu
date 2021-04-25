@@ -146,7 +146,7 @@ TEST_P(MaxElementFixture, hybrid) {
 	//verifyMaxElement(kernel.srcHost, max);
 
 	auto hybridFile = fopen("results_hybrid.txt", "a");
-	fprintf(hybridFile, "MaxElement %llu %llu %llu %d %Lf\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
+	fprintf(hybridFile, "MaxElement %llu %llu %llu %d %f\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
 
@@ -213,7 +213,7 @@ TEST_P(MaxElementGpuFixture, gpu) {
 	//verifyMaxElement(kernel.srcHost, max);
 
 	auto gpuFile = fopen("results_gpu.txt", "a");
-	fprintf(gpuFile, "MaxElement %llu %Lf\n", dataSize, elapsed_seconds.count());
+	fprintf(gpuFile, "MaxElement %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(gpuFile);
 }
 
