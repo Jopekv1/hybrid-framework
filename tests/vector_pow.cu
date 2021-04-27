@@ -125,16 +125,6 @@ public:
 			std::cout << "!!!!!!!!!!!!!!!!! GPU PACKAGE BIGGER THAN GPU ALLOC SIZE !!!!!!!!!!!!!!!!!!!!!!" << std::endl;
 			//GTEST_SKIP();
 		}
-
-		if (!((workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-			(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8))) {
-			GTEST_SKIP();
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -163,12 +153,7 @@ TEST_P(VectorPowFixture, hybrid) {
 }
 
 static uint64_t dataSizes[] = {
-	1342177280 / 4,
-	2684354560 / 4,
-	5368709120 / 4,
-	8053063680 / 4,
-	10737418240 / 4,
-	13421772800 / 4, };
+	2684354560 / 4};
 
 static uint64_t workGroupSizesValues[] = {
 	10,
