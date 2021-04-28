@@ -13,7 +13,6 @@
 #include <chrono>
 #include <algorithm>
 #include <mutex>
-#include <random>
 
 constexpr uint64_t gpuAllocSize = 1073741824;
 
@@ -38,12 +37,7 @@ public:
 		srcHost.resize(dataSize);
 		src.resize(gpuAllocSize);
 
-		std::uniform_int_distribution<int> distribution(1, 1000000);
-		std::default_random_engine randomEngine;
-
-		for (uint64_t i = 0; i < dataSize; i++) {
-			srcHost[i] = distribution(randomEngine);
-		}
+		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
 
 		cudaStreamCreate(&ownStream);
 		thrust::cuda::par.on(ownStream);
