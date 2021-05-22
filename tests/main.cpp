@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
 #include <stdio.h>
+#include <cstring>
+
+namespace Config {
+	bool tunningMode = false;
+}
 
 int main(int argc, char** argv) {
 	auto gpuFile = fopen("results_gpu.txt", "w");
@@ -14,6 +19,13 @@ int main(int argc, char** argv) {
 
 	fclose(gpuFile);
 	fclose(hybridFile);
+
+	if (argc > 1) {
+		auto param = argv[1];
+		if (strcmp(param, "-t") == 0) {
+			Config::tunningMode = true;
+		}
+	}
 
 	::testing::InitGoogleTest(&argc, argv);
 	return RUN_ALL_TESTS();

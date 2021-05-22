@@ -18,6 +18,7 @@ set(SOURCES
 
 set(TESTS
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/collatz.cu
+    ${CMAKE_CURRENT_SOURCE_DIR}/tests/configuration.h
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/main.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/math.cu
     ${CMAKE_CURRENT_SOURCE_DIR}/tests/max_element.cu

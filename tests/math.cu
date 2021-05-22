@@ -1,5 +1,6 @@
 #include "kernel.h"
 #include "load_balancer.h"
+#include "configuration.h"
 
 #include <gtest/gtest.h>
 #include <cuda_runtime.h>
@@ -86,6 +87,14 @@ public:
 	cudaStream_t ownStream;
 };
 
+static uint64_t dataSizes[] = {
+	1342177280 / 2,
+	2684354560 / 2,
+	5368709120 / 2,
+	8053063680 / 2,
+	10737418240 / 2,
+	13421772800 / 2, };
+
 class MathFixture : public ::testing::TestWithParam<std::tuple<uint64_t, uint64_t, uint64_t, int>> {
 public:
 
@@ -103,25 +112,33 @@ public:
 			//GTEST_SKIP();
 		}
 
-		if (!((workGroupSize == 100000 && gpuWorkGroups == 10000 && numThreads == 8) ||
-			(workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-			(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 100000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 10000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-			(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 50000 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 20000 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 10000 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-			(workGroupSize == 1000 && gpuWorkGroups == 100 && numThreads == 8) ||
-			(workGroupSize == 100 && gpuWorkGroups == 100000 && numThreads == 8) ||
-			(workGroupSize == 100 && gpuWorkGroups == 50000 && numThreads == 8) ||
-			(workGroupSize == 100 && gpuWorkGroups == 20000 && numThreads == 8))) {
-			GTEST_SKIP();
+		if (!Config::tunningMode) {
+			if (!((workGroupSize == 100000 && gpuWorkGroups == 10000 && numThreads == 8) ||
+				(workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+				(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 100000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 10000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 50000 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 20000 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 10000 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 100 && numThreads == 8) ||
+				(workGroupSize == 100 && gpuWorkGroups == 100000 && numThreads == 8) ||
+				(workGroupSize == 100 && gpuWorkGroups == 50000 && numThreads == 8) ||
+				(workGroupSize == 100 && gpuWorkGroups == 20000 && numThreads == 8))) {
+				GTEST_SKIP();
+			}
+		}
+
+		if (Config::tunningMode) {
+			if (dataSize != dataSizes[1]) {
+				GTEST_SKIP();
+			}
 		}
 	}
 
@@ -147,14 +164,6 @@ TEST_P(MathFixture, hybrid) {
 	fprintf(hybridFile, "Math %llu %llu %llu %d %f\n", dataSize, workGroupSize, gpuWorkGroups, numThreads, elapsed_seconds.count());
 	fclose(hybridFile);
 }
-
-static uint64_t dataSizes[] = {
-	1342177280 / 2,
-	2684354560 / 2,
-	5368709120 / 2,
-	8053063680 / 2,
-	10737418240 / 2,
-	13421772800 / 2, };
 
 static uint64_t workGroupSizesValues[] = {
 	10,
@@ -189,7 +198,13 @@ class MathGpuFixture : public ::testing::TestWithParam<uint64_t> {
 public:
 
 	void SetUp() override {
-		dataSize = GetParam();
+		dataSize = GetParam();		
+		
+		if (Config::tunningMode) {
+			if (dataSize != dataSizes[1]) {
+				GTEST_SKIP();
+			}
+		}
 	}
 
 	uint64_t dataSize = 0;
