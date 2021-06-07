@@ -217,25 +217,25 @@ public:
 	uint64_t dataSize = 0;
 };
 
-//TEST_P(MaxElementGpuFixture, gpu) {
-//	MaxElementKernel kernel(dataSize);
-//
-//	auto start = std::chrono::steady_clock::now();
-//
-//	kernel.runGpu(0u, 0u, dataSize);
-//	auto max = kernel.merge();
-//
-//	auto end = std::chrono::steady_clock::now();
-//
-//	std::chrono::duration<double> elapsed_seconds = end - start;
-//	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
-//
-//	//verifyMaxElement(kernel.srcHost, max);
-//
-//	auto gpuFile = fopen("results_gpu.txt", "a");
-//	fprintf(gpuFile, "MaxElement %llu %f\n", dataSize, elapsed_seconds.count());
-//	fclose(gpuFile);
-//}
+TEST_P(MaxElementGpuFixture, gpu) {
+	MaxElementKernel kernel(dataSize);
+
+	auto start = std::chrono::steady_clock::now();
+
+	kernel.runGpu(0u, 0u, dataSize);
+	auto max = kernel.merge();
+
+	auto end = std::chrono::steady_clock::now();
+
+	std::chrono::duration<double> elapsed_seconds = end - start;
+	std::cout << "GPU time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyMaxElement(kernel.srcHost, max);
+
+	auto gpuFile = fopen("results_gpu.txt", "a");
+	fprintf(gpuFile, "MaxElement %llu %f\n", dataSize, elapsed_seconds.count());
+	fclose(gpuFile);
+}
 
 INSTANTIATE_TEST_SUITE_P(MaxElementGpu,
 	MaxElementGpuFixture,
