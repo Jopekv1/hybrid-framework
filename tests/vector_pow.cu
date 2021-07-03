@@ -136,24 +136,16 @@ public:
 		}
 
 		if (!Config::tunningMode) {
-			if (!((workGroupSize == 100000 && gpuWorkGroups == 10000 && numThreads == 8) ||
-				(workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+			if (!((workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
 				(workGroupSize == 100000 && gpuWorkGroups == 100 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 100000 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 50000 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 20000 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 10000 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 1000 && numThreads == 8) ||
-				(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
-				(workGroupSize == 1000 && gpuWorkGroups == 100000 && numThreads == 8) ||
-				(workGroupSize == 1000 && gpuWorkGroups == 50000 && numThreads == 8) ||
 				(workGroupSize == 1000 && gpuWorkGroups == 20000 && numThreads == 8) ||
 				(workGroupSize == 1000 && gpuWorkGroups == 10000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 100 && numThreads == 8) ||
+				(workGroupSize == 1000 && gpuWorkGroups == 50000 && numThreads == 8) ||
 				(workGroupSize == 1000 && gpuWorkGroups == 1000 && numThreads == 8) ||
 				(workGroupSize == 1000 && gpuWorkGroups == 100 && numThreads == 8) ||
-				(workGroupSize == 100 && gpuWorkGroups == 100000 && numThreads == 8) ||
-				(workGroupSize == 100 && gpuWorkGroups == 50000 && numThreads == 8) ||
-				(workGroupSize == 100 && gpuWorkGroups == 20000 && numThreads == 8))) {
+				(workGroupSize == 100000 && gpuWorkGroups == 1000 && numThreads == 8) ||
+				(workGroupSize == 10000 && gpuWorkGroups == 10000 && numThreads == 8))) {
 				GTEST_SKIP();
 			}
 		}
