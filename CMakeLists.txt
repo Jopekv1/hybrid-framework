@@ -5,6 +5,9 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
+find_package(CUDA  REQUIRED)
+include_directories("${CUDA_INCLUDE_DIRS}")
+
 include_directories(src)
 add_subdirectory(third_party)
 

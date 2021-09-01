@@ -35,19 +35,42 @@ public:
 	MaxElementKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
+
 		srcHost.resize(dataSize);
-		src.resize(gpuAllocSize);
+
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+
+			cudaStream_t tOwnStream;
+			thrust::device_vector<int> tSrc;
+			src.push_back(tSrc);
+
+			src[i].resize(gpuAllocSize);
+			cudaStreamCreate(&tOwnStream);
+			ownStream.push_back(tOwnStream);
+			thrust::cuda::par.on(ownStream[i]);
+		}
+
+		cudaSetDevice(0);
 
 		thrust::generate(thrust::host, srcHost.begin(), srcHost.end(), rand);
 
-		cudaStreamCreate(&ownStream);
-		thrust::cuda::par.on(ownStream);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
 	~MaxElementKernel() {
-		cudaStreamDestroy(ownStream);
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
+		
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+			cudaStreamDestroy(ownStream[i]);
+		}
+
+		cudaSetDevice(0);
 	};
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
@@ -63,8 +86,8 @@ public:
 				size = workGroupSize - i;
 			}
 
-			cudaMemcpyAsync(thrust::raw_pointer_cast(src.data()), thrust::raw_pointer_cast(srcHost.data() + workItemId + i), size * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-			auto max = thrust::max_element(src.begin(), src.begin() + size);
+			cudaMemcpyAsync(thrust::raw_pointer_cast(src[deviceId].data()), thrust::raw_pointer_cast(srcHost.data() + workItemId + i), size * sizeof(int), cudaMemcpyHostToDevice, ownStream[deviceId]);
+			auto max = thrust::max_element(src[deviceId].begin(), src[deviceId].begin() + size);
 			updateMax(*max);
 
 			i += size;
@@ -81,9 +104,9 @@ public:
 	}
 
 	thrust::host_vector<int> srcHost;
-	thrust::device_vector<int> src;
+	std::vector<thrust::device_vector<int>> src;
 
-	cudaStream_t ownStream;
+	std::vector<cudaStream_t> ownStream;
 
 	std::vector<int> dst;
 	std::mutex dstMutex;
@@ -210,13 +233,15 @@ public:
 };
 
 TEST_P(MaxElementGpuFixture, gpu) {
+	int gpuCount;
+	cudaGetDeviceCount(&gpuCount);
+
 	MaxElementKernel kernel(dataSize);
+	LoadBalancer balancer(uint64_t(dataSize/gpuCount), 1, gpuCount);
 
 	auto start = std::chrono::steady_clock::now();
-
-	kernel.runGpu(0u, 0u, dataSize);
+	balancer.execute(&kernel, dataSize);
 	auto max = kernel.merge();
-
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

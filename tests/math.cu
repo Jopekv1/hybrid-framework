@@ -34,21 +34,45 @@ public:
 	MathKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
+
 		cudaMallocHost(&srcHost, dataSize * sizeof(double));
 
-		cudaMalloc(&src, gpuAllocSize * sizeof(double));
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+			
+			double* tSrc = nullptr;
+			cudaStream_t tOwnStream;
 
-		cudaStreamCreate(&ownStream);
+			cudaMalloc(&tSrc, gpuAllocSize * sizeof(double));
+
+			cudaStreamCreate(&tOwnStream);
+
+			src.push_back(tSrc);
+			ownStream.push_back(tOwnStream);
+		}
+
+		cudaSetDevice(0);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
 	~MathKernel() {
-		cudaFree(src);
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
 
 		cudaFreeHost(srcHost);
 
-		cudaStreamDestroy(ownStream);
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+		
+			cudaFree(src[i]);
+
+			cudaStreamDestroy(ownStream[i]);
+		}
+
+		cudaSetDevice(0);
 	}
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
@@ -73,18 +97,18 @@ public:
 			int blockSize = 1024;
 			int numBlocks = int((size + blockSize - 1) / blockSize);
 
-			math<<<numBlocks, blockSize, 0, ownStream>>>(size, src, e, workItemId + i);
-			cudaMemcpyAsync(srcHost + workItemId + i, src, size * sizeof(double), cudaMemcpyDeviceToHost, ownStream);
-			cudaStreamSynchronize(ownStream);
+			math<<<numBlocks, blockSize, 0, ownStream[deviceId]>>>(size, src[deviceId], e, workItemId + i);
+			cudaMemcpyAsync(srcHost + workItemId + i, src[deviceId], size * sizeof(double), cudaMemcpyDeviceToHost, ownStream[deviceId]);
+			cudaStreamSynchronize(ownStream[deviceId]);
 
 			i += size;
 		}
 	};
 
-	double* src = nullptr;
 	double* srcHost = nullptr;
+	std::vector<double*> src;
 
-	cudaStream_t ownStream;
+	std::vector<cudaStream_t> ownStream;
 };
 
 static uint64_t dataSizes[] = {
@@ -203,12 +227,14 @@ public:
 };
 
 TEST_P(MathGpuFixture, gpu) {
+	int gpuCount;
+	cudaGetDeviceCount(&gpuCount);
+
 	MathKernel kernel(dataSize);
+	LoadBalancer balancer(uint64_t(dataSize/gpuCount), 1, gpuCount);
 
 	auto start = std::chrono::steady_clock::now();
-
-	kernel.runGpu(0u, 0u, dataSize);
-
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

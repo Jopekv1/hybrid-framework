@@ -62,21 +62,45 @@ public:
 	CollatzKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
+
 		cudaMallocHost(&srcHost, dataSize * sizeof(int));
 
-		cudaMalloc(&src, gpuAllocSize * sizeof(int));
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+			
+			int* tSrc = nullptr;
+			cudaStream_t tOwnStream;
 
-		cudaStreamCreate(&ownStream);
+			cudaMalloc(&tSrc, gpuAllocSize * sizeof(int));
+
+			cudaStreamCreate(&tOwnStream);
+
+			src.push_back(tSrc);
+			ownStream.push_back(tOwnStream);
+		}
+
+		cudaSetDevice(0);
 
 		std::cout << "Data initialized" << std::endl;
 	}
 
 	~CollatzKernel() {
-		cudaFree(src);
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
 
 		cudaFreeHost(srcHost);
 
-		cudaStreamDestroy(ownStream);
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+		
+			cudaFree(src[i]);
+
+			cudaStreamDestroy(ownStream[i]);
+		}
+
+		cudaSetDevice(0);
 	}
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
@@ -107,19 +131,19 @@ public:
 			int blockSize = 1024;
 			int numBlocks = int((size + blockSize - 1) / blockSize);
 
-			cudaMemcpyAsync(src, srcHost + workItemId + i, size * sizeof(int), cudaMemcpyHostToDevice, ownStream);
-			collatz<<<numBlocks, blockSize, 0, ownStream>>>(size, src, workItemId + i);
-			cudaMemcpyAsync(srcHost + workItemId + i, src, size * sizeof(int), cudaMemcpyDeviceToHost, ownStream);
-			cudaStreamSynchronize(ownStream);
+			cudaMemcpyAsync(src[deviceId], srcHost + workItemId + i, size * sizeof(int), cudaMemcpyHostToDevice, ownStream[deviceId]);
+			collatz<<<numBlocks, blockSize, 0, ownStream[deviceId]>>>(size, src[deviceId], workItemId + i);
+			cudaMemcpyAsync(srcHost + workItemId + i, src[deviceId], size * sizeof(int), cudaMemcpyDeviceToHost, ownStream[deviceId]);
+			cudaStreamSynchronize(ownStream[deviceId]);
 
 			i += size;
 		}
 	};
 
-	int* src = nullptr;
 	int* srcHost = nullptr;
+	std::vector<int*> src;
 
-	cudaStream_t ownStream;
+	std::vector<cudaStream_t> ownStream;
 };
 
 static uint64_t dataSizes[] = {
@@ -240,10 +264,14 @@ public:
 };
 
 TEST_P(CollatzGpuFixture, gpu) {
+	int gpuCount;
+	cudaGetDeviceCount(&gpuCount);
+
 	CollatzKernel kernel(dataSize);
+	LoadBalancer balancer(uint64_t(dataSize/gpuCount), 1, gpuCount);
 
 	auto start = std::chrono::steady_clock::now();
-	kernel.runGpu(0, 0, dataSize);
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

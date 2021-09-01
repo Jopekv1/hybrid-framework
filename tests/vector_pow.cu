@@ -45,11 +45,30 @@ public:
 	VecPowKernel(uint64_t dataSize) {
 		std::cout << "Initializing data..." << std::endl;
 
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
+
 		cudaMallocHost(&srcHost, dataSize * sizeof(double));
 		cudaMallocHost(&dstHost, dataSize * sizeof(double));
 
-		cudaMalloc(&src, gpuAllocSize * sizeof(double));
-		cudaMalloc(&dst, gpuAllocSize * sizeof(double));
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+			
+			double* tSrc = nullptr;
+			double* tDst = nullptr;
+			cudaStream_t tOwnStream;
+
+			cudaMalloc(&tSrc, gpuAllocSize * sizeof(double));
+			cudaMalloc(&tDst, gpuAllocSize * sizeof(double));
+
+			cudaStreamCreate(&tOwnStream);
+
+			src.push_back(tSrc);
+			dst.push_back(tDst);
+			ownStream.push_back(tOwnStream);
+		}
+
+		cudaSetDevice(0);
 
 		double lower_bound = 0;
 		double upper_bound = 100000;
@@ -61,19 +80,26 @@ public:
 			dstHost[i] = 0;
 		}
 
-		cudaStreamCreate(&ownStream);
-
 		std::cout << "Data initialized" << std::endl;
 	}
 
 	~VecPowKernel() {
-		cudaFree(dst);
-		cudaFree(src);
+		int gpuCount;
+		cudaGetDeviceCount(&gpuCount);
 
 		cudaFreeHost(dstHost);
 		cudaFreeHost(srcHost);
 
-		cudaStreamDestroy(ownStream);
+		for (int i = 0; i < gpuCount; i++) {
+			cudaSetDevice(i);
+		
+			cudaFree(src[i]);
+			cudaFree(dst[i]);
+
+			cudaStreamDestroy(ownStream[i]);
+		}
+
+		cudaSetDevice(0);
 	}
 
 	void runCpu(uint64_t workItemId, uint64_t workGroupSize) override {
@@ -93,21 +119,21 @@ public:
 			int blockSize = 1024;
 			int numBlocks = int((size + blockSize - 1) / blockSize);
 
-			cudaMemcpyAsync(src, srcHost + workItemId + i, size * sizeof(double), cudaMemcpyHostToDevice, ownStream);
-			pow<<<numBlocks, blockSize, 0, ownStream>>>(size, src, dst, e);
-			cudaMemcpyAsync(dstHost + workItemId + i, dst, size * sizeof(double), cudaMemcpyDeviceToHost, ownStream);
-			cudaStreamSynchronize(ownStream);
+			cudaMemcpyAsync(src[deviceId], srcHost + workItemId + i, size * sizeof(double), cudaMemcpyHostToDevice, ownStream[deviceId]);
+			pow<<<numBlocks, blockSize, 0, ownStream[deviceId]>>>(size, src[deviceId], dst[deviceId], e);
+			cudaMemcpyAsync(dstHost + workItemId + i, dst[deviceId], size * sizeof(double), cudaMemcpyDeviceToHost, ownStream[deviceId]);
+			cudaStreamSynchronize(ownStream[deviceId]);
 
 			i += size;
 		}
 	};
 
-	double* src = nullptr;
-	double* dst = nullptr;
 	double* srcHost = nullptr;
 	double* dstHost = nullptr;
+	std::vector<double*> src;
+	std::vector<double*> dst;
 
-	cudaStream_t ownStream;
+	std::vector<cudaStream_t> ownStream;
 };
 
 static uint64_t dataSizes[] = {
@@ -228,12 +254,14 @@ public:
 };
 
 TEST_P(VectorPowGpuFixture, gpu) {
+	int gpuCount;
+	cudaGetDeviceCount(&gpuCount);
+
 	VecPowKernel kernel(dataSize);
+	LoadBalancer balancer(uint64_t(dataSize/gpuCount), 1, gpuCount);
 
 	auto start = std::chrono::steady_clock::now();
-
-	kernel.runGpu(0u, 0u, dataSize);
-
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;

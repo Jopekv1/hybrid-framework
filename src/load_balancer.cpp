@@ -5,6 +5,7 @@
 #include <thread>
 #include <utility>
 #include <mutex>
+#include <cuda_runtime.h>
 
 LoadBalancer::LoadBalancer(uint64_t workGroupSize, uint64_t gpuWorkGroups, int numThreads) {
 	this->getDeviceCount();
@@ -30,6 +31,9 @@ struct threadData {
 };
 
 void threadExecute(threadData & data) {
+	if (data.threadId < data.gpuCount) {
+		cudaSetDevice(data.threadId);
+	}
 	for (uint64_t i = 0; i < data.workItemsCnt; i++) {
 		data.balancerMtx->lock();
 		if (i < *data.workCounter) {
@@ -48,12 +52,12 @@ void threadExecute(threadData & data) {
 			break;
 		}
 
-		if (data.threadId == 0) {
+		if (data.threadId < data.gpuCount) {
 			if (i + data.gpuWorkGroupSize > data.workItemsCnt) {
 				data.gpuWorkGroupSize = data.workItemsCnt - i;
 			}
 			//printf("Thread %d run on GPU, items: %d - %d\n", data.threadId, i, i + data.gpuWorkGroupSize - 1);
-			data.kernel->runGpu(0, i, data.gpuWorkGroupSize);
+			data.kernel->runGpu(data.threadId, i, data.gpuWorkGroupSize);
 		}
 		else {
 			if (i + data.cpuWorkGroupSize > data.workItemsCnt) {
@@ -69,11 +73,10 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	//TODO:
 	//-perform tuning
 
-	constexpr int maxThreadCount = 8;
 	const int threadCount = this->numThreads;
 
-	std::thread threads[maxThreadCount - 1];
-	threadData datas[maxThreadCount];
+	std::thread * threads = new std::thread[threadCount - 1];
+	threadData * datas = new threadData[threadCount];
 
 	uint64_t workCounter = 0u;
 	std::mutex balancerMtx;
@@ -100,4 +103,7 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	}
 
 	this->synchronize();
+
+	delete[] threads;
+	delete[] datas;
 }
