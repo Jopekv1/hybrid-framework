@@ -56,23 +56,18 @@ void threadExecute(threadData & data) {
 			if (i + data.gpuWorkGroupSize > data.workItemsCnt) {
 				data.gpuWorkGroupSize = data.workItemsCnt - i;
 			}
-			//printf("Thread %d run on GPU, items: %d - %d\n", data.threadId, i, i + data.gpuWorkGroupSize - 1);
 			data.kernel->runGpu(data.threadId, i, data.gpuWorkGroupSize);
 		}
 		else {
 			if (i + data.cpuWorkGroupSize > data.workItemsCnt) {
 				data.cpuWorkGroupSize = data.workItemsCnt - i;
 			}
-			//printf("Thread %d run on CPU, items: %d - %d\n", data.threadId, i, i + data.cpuWorkGroupSize - 1);
 			data.kernel->runCpu(i, data.cpuWorkGroupSize);
 		}
 	}
 }
 
 void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
-	//TODO:
-	//-perform tuning
-
 	const int threadCount = this->numThreads;
 
 	std::thread * threads = new std::thread[threadCount - 1];
