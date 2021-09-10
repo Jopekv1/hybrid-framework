@@ -277,11 +277,9 @@ TEST(MaxElementTheory, theoryCpu) {
 	}
 
 	MaxElementKernel kernel(gpuAllocSize/4);
-	LoadBalancer balancer(gpuAllocSize/32, 1, 8);
-	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, gpuAllocSize/4);
+	kernel.runCpu(0,gpuAllocSize/4);
 	auto max = kernel.merge();
 	auto end = std::chrono::steady_clock::now();
 

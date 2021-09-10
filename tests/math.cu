@@ -268,17 +268,13 @@ TEST(MathTheory, theoryCpu) {
 	}
 
 	MathKernel kernel(gpuAllocSize/4);
-	LoadBalancer balancer(gpuAllocSize/32, 1, 8);
-	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, gpuAllocSize/4);
+	kernel.runCpu(0,gpuAllocSize/4);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "CPU time: " << elapsed_seconds.count() << "s\n";
-
-	//verifyCollatz(kernel.srcHost);
 
 	auto cpuFile = fopen("results_cpu.txt", "a");
 	fprintf(cpuFile, "Math %llu %f\n", gpuAllocSize/4, elapsed_seconds.count());

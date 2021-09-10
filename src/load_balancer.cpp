@@ -39,7 +39,7 @@ void threadExecute(threadData & data) {
 		if (i < *data.workCounter) {
 			i = *data.workCounter;
 		}
-		if (data.threadId == 0) {
+		if (data.threadId < data.gpuCount) {
 			*data.workCounter += data.gpuWorkGroupSize;
 		}
 		else {

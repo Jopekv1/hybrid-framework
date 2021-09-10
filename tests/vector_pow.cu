@@ -298,11 +298,8 @@ TEST(VectorPowTheory, theoryCpu) {
 	}
 
 	VecPowKernel kernel(gpuAllocSize/2);
-	LoadBalancer balancer(gpuAllocSize/16, 1, 8);
-	balancer.forceDeviceCount(0);
-
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, gpuAllocSize/2);
+	kernel.runCpu(0,gpuAllocSize/4);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
