@@ -264,7 +264,7 @@ public:
 		}
 
 		if (Config::theoryMode) {
-			dataSize = gpuAllocSize;
+			dataSize = gpuAllocSize/4;
 			static bool runInTheoryMode = false;
 			if (runInTheoryMode) {
 				GTEST_SKIP();
@@ -307,12 +307,12 @@ TEST(CollatzTheory, theoryCpu) {
 		GTEST_SKIP();
 	}
 
-	CollatzKernel kernel(gpuAllocSize);
-	LoadBalancer balancer(gpuAllocSize, 1, 8);
+	CollatzKernel kernel(gpuAllocSize/4);
+	LoadBalancer balancer(gpuAllocSize/32, 1, 8);
 	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, gpuAllocSize);
+	balancer.execute(&kernel, gpuAllocSize/4);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
@@ -321,6 +321,6 @@ TEST(CollatzTheory, theoryCpu) {
 	//verifyCollatz(kernel.srcHost);
 
 	auto cpuFile = fopen("results_cpu.txt", "a");
-	fprintf(cpuFile, "Collatz %llu %f\n", gpuAllocSize, elapsed_seconds.count());
+	fprintf(cpuFile, "Collatz %llu %f\n", gpuAllocSize/4, elapsed_seconds.count());
 	fclose(cpuFile);
 }

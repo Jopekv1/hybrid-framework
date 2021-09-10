@@ -254,7 +254,7 @@ public:
 		}
 
 		if (Config::theoryMode) {
-			dataSize = gpuAllocSize;
+			dataSize = gpuAllocSize/2;
 			static bool runInTheoryMode = false;
 			if (runInTheoryMode) {
 				GTEST_SKIP();
@@ -297,12 +297,12 @@ TEST(VectorPowTheory, theoryCpu) {
 		GTEST_SKIP();
 	}
 
-	VecPowKernel kernel(gpuAllocSize);
-	LoadBalancer balancer(gpuAllocSize, 1, 8);
+	VecPowKernel kernel(gpuAllocSize/2);
+	LoadBalancer balancer(gpuAllocSize/16, 1, 8);
 	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	balancer.execute(&kernel, gpuAllocSize);
+	balancer.execute(&kernel, gpuAllocSize/2);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
@@ -311,6 +311,6 @@ TEST(VectorPowTheory, theoryCpu) {
 	//verifyCollatz(kernel.srcHost);
 
 	auto cpuFile = fopen("results_cpu.txt", "a");
-	fprintf(cpuFile, "VecPow %llu %f\n", gpuAllocSize, elapsed_seconds.count());
+	fprintf(cpuFile, "VecPow %llu %f\n", gpuAllocSize/2, elapsed_seconds.count());
 	fclose(cpuFile);
 }
