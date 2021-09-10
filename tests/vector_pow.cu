@@ -252,19 +252,9 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			dataSize = gpuAllocSize/2;
-			static bool runInTheoryMode = false;
-			if (runInTheoryMode) {
-				GTEST_SKIP();
-			}
-			runInTheoryMode = true;
-		}
 	}
 
 	uint64_t dataSize = 0;
-	bool runInTheoryMode = false;
 };
 
 TEST_P(VectorPowGpuFixture, gpu) {
@@ -292,22 +282,40 @@ INSTANTIATE_TEST_SUITE_P(VectorPowGpu,
 	VectorPowGpuFixture,
 	::testing::ValuesIn(dataSizes));
 
-TEST(VectorPowTheory, theoryCpu) {
-	if (!Config::theoryMode) {
-		GTEST_SKIP();
+class VectorPowCpuFixture : public ::testing::TestWithParam<uint64_t> {
+public:
+
+	void SetUp() override {
+		dataSize = GetParam();
+
+		if (Config::tunningMode) {
+			if (dataSize != dataSizes[1]) {
+				GTEST_SKIP();
+			}
+		}
 	}
 
-	VecPowKernel kernel(gpuAllocSize/2);
+	uint64_t dataSize = 0;
+};
+
+TEST_P(VectorPowCpuFixture, theoryCpu) {
+	VecPowKernel kernel(dataSize);
+
+	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);
+	balancer.forceDeviceCount(0);
+
 	auto start = std::chrono::steady_clock::now();
-	kernel.runCpu(0,gpuAllocSize/4);
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "CPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyCollatz(kernel.srcHost);
-
 	auto cpuFile = fopen("results_cpu.txt", "a");
-	fprintf(cpuFile, "VecPow %llu %f\n", gpuAllocSize/2, elapsed_seconds.count());
+	fprintf(cpuFile, "VecPow %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(cpuFile);
 }
+
+INSTANTIATE_TEST_SUITE_P(VectorPowCpu,
+	VectorPowCpuFixture,
+	::testing::ValuesIn(dataSizes));

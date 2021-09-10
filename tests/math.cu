@@ -225,15 +225,6 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			dataSize = gpuAllocSize/4;
-			static bool runInTheoryMode = false;
-			if (runInTheoryMode) {
-				GTEST_SKIP();
-			}
-			runInTheoryMode = true;
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -262,21 +253,40 @@ INSTANTIATE_TEST_SUITE_P(MathGpu,
 	MathGpuFixture,
 	::testing::ValuesIn(dataSizes));
 
-TEST(MathTheory, theoryCpu) {
-	if (!Config::theoryMode) {
-		GTEST_SKIP();
+class MathCpuFixture : public ::testing::TestWithParam<uint64_t> {
+public:
+
+	void SetUp() override {
+		dataSize = GetParam();
+
+		if (Config::tunningMode) {
+			if (dataSize != dataSizes[1]) {
+				GTEST_SKIP();
+			}
+		}
 	}
 
-	MathKernel kernel(gpuAllocSize/4);
+	uint64_t dataSize = 0;
+};
+
+TEST_F(MathCpuFixture, theoryCpu) {
+	MathKernel kernel(dataSize);
+
+	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);
+	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	kernel.runCpu(0,gpuAllocSize/4);
+	balancer.execute(&kernel, dataSize);
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "CPU time: " << elapsed_seconds.count() << "s\n";
 
 	auto cpuFile = fopen("results_cpu.txt", "a");
-	fprintf(cpuFile, "Math %llu %f\n", gpuAllocSize/4, elapsed_seconds.count());
+	fprintf(cpuFile, "Math %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(cpuFile);
 }
+
+INSTANTIATE_TEST_SUITE_P(MathCpu,
+	MathCpuFixture,
+	::testing::ValuesIn(dataSizes));

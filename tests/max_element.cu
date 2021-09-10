@@ -64,7 +64,7 @@ public:
 	~MaxElementKernel() {
 		int gpuCount;
 		cudaGetDeviceCount(&gpuCount);
-		
+
 		for (int i = 0; i < gpuCount; i++) {
 			cudaSetDevice(i);
 			cudaStreamDestroy(ownStream[i]);
@@ -231,15 +231,6 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			dataSize = gpuAllocSize/4;
-			static bool runInTheoryMode = false;
-			if (runInTheoryMode) {
-				GTEST_SKIP();
-			}
-			runInTheoryMode = true;
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -250,7 +241,7 @@ TEST_P(MaxElementGpuFixture, gpu) {
 	cudaGetDeviceCount(&gpuCount);
 
 	MaxElementKernel kernel(dataSize);
-	LoadBalancer balancer(uint64_t(dataSize/gpuCount), 1, gpuCount);
+	LoadBalancer balancer(uint64_t(dataSize / gpuCount), 1, gpuCount);
 
 	auto start = std::chrono::steady_clock::now();
 	balancer.execute(&kernel, dataSize);
@@ -271,24 +262,41 @@ INSTANTIATE_TEST_SUITE_P(MaxElementGpu,
 	MaxElementGpuFixture,
 	::testing::ValuesIn(dataSizes));
 
-TEST(MaxElementTheory, theoryCpu) {
-	if (!Config::theoryMode) {
-		GTEST_SKIP();
+class MaxElementCpuFixture : public ::testing::TestWithParam<uint64_t> {
+public:
+
+	void SetUp() override {
+		dataSize = GetParam();
+
+		if (Config::tunningMode) {
+			if (dataSize != dataSizes[1]) {
+				GTEST_SKIP();
+			}
+		}
 	}
 
-	MaxElementKernel kernel(gpuAllocSize/4);
+	uint64_t dataSize = 0;
+};
+
+TEST_F(MaxElementCpuFixture, theoryCpu) {
+	MaxElementKernel kernel(dataSize);
+
+	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);
+	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
-	kernel.runCpu(0,gpuAllocSize/4);
+	balancer.execute(&kernel, dataSize);
 	auto max = kernel.merge();
 	auto end = std::chrono::steady_clock::now();
 
 	std::chrono::duration<double> elapsed_seconds = end - start;
 	std::cout << "CPU time: " << elapsed_seconds.count() << "s\n";
 
-	//verifyCollatz(kernel.srcHost);
-
 	auto cpuFile = fopen("results_cpu.txt", "a");
-	fprintf(cpuFile, "MaxElement %llu %f\n", gpuAllocSize/4, elapsed_seconds.count());
+	fprintf(cpuFile, "MaxElement %llu %f\n", dataSize, elapsed_seconds.count());
 	fclose(cpuFile);
 }
+
+INSTANTIATE_TEST_SUITE_P(MaxElementCpu,
+	MaxElementCpuFixture,
+	::testing::ValuesIn(dataSizes));

@@ -4,7 +4,6 @@
 
 namespace Config {
 	bool tunningMode = false;
-	bool theoryMode = false;
 }
 
 int main(int argc, char** argv) {
@@ -28,9 +27,6 @@ int main(int argc, char** argv) {
 		auto param = argv[1];
 		if (strcmp(param, "-t") == 0) {
 			Config::tunningMode = true;
-		}
-		if (strcmp(param, "-q") == 0) {
-			Config::theoryMode = true;
 		}
 	}
 
