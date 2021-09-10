@@ -181,6 +181,10 @@ public:
 				GTEST_SKIP();
 			}
 		}
+
+		if (Config::theoryMode) {
+			GTEST_SKIP();
+		}
 	}
 
 	uint64_t dataSize = 0;
@@ -248,9 +252,19 @@ public:
 				GTEST_SKIP();
 			}
 		}
+
+		if (Config::theoryMode) {
+			dataSize = gpuAllocSize;
+			static bool runInTheoryMode = false;
+			if (runInTheoryMode) {
+				GTEST_SKIP();
+			}
+			runInTheoryMode = true;
+		}
 	}
 
 	uint64_t dataSize = 0;
+	bool runInTheoryMode = false;
 };
 
 TEST_P(VectorPowGpuFixture, gpu) {
@@ -277,3 +291,26 @@ TEST_P(VectorPowGpuFixture, gpu) {
 INSTANTIATE_TEST_SUITE_P(VectorPowGpu,
 	VectorPowGpuFixture,
 	::testing::ValuesIn(dataSizes));
+
+TEST(VectorPowTheory, theoryCpu) {
+	if (!Config::theoryMode) {
+		GTEST_SKIP();
+	}
+
+	VecPowKernel kernel(gpuAllocSize);
+	LoadBalancer balancer(gpuAllocSize, 1, 8);
+	balancer.forceDeviceCount(0);
+
+	auto start = std::chrono::steady_clock::now();
+	balancer.execute(&kernel, gpuAllocSize);
+	auto end = std::chrono::steady_clock::now();
+
+	std::chrono::duration<double> elapsed_seconds = end - start;
+	std::cout << "CPU time: " << elapsed_seconds.count() << "s\n";
+
+	//verifyCollatz(kernel.srcHost);
+
+	auto cpuFile = fopen("results_cpu.txt", "a");
+	fprintf(cpuFile, "VecPow %llu %f\n", gpuAllocSize, elapsed_seconds.count());
+	fclose(cpuFile);
+}

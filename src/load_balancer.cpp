@@ -70,8 +70,8 @@ void threadExecute(threadData & data) {
 void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 	const int threadCount = this->numThreads;
 
-	std::thread * threads = new std::thread[threadCount - 1];
-	threadData * datas = new threadData[threadCount];
+	std::thread* threads = new std::thread[threadCount - 1];
+	threadData* datas = new threadData[threadCount];
 
 	uint64_t workCounter = 0u;
 	std::mutex balancerMtx;
@@ -101,4 +101,8 @@ void LoadBalancer::execute(Kernel * kernel, uint64_t workItemsCnt) {
 
 	delete[] threads;
 	delete[] datas;
+}
+
+void LoadBalancer::forceDeviceCount(int gpuCount){
+	this->gpuCount = gpuCount;
 }

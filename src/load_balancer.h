@@ -10,6 +10,8 @@ public:
 
 	void execute(Kernel* kernel, uint64_t workItemsCnt);
 
+	void forceDeviceCount(int gpuCount);
+
 private:
 
 	void getDeviceCount();

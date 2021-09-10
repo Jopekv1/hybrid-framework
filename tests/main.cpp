@@ -4,10 +4,12 @@
 
 namespace Config {
 	bool tunningMode = false;
+	bool theoryMode = false;
 }
 
 int main(int argc, char** argv) {
 	auto gpuFile = fopen("results_gpu.txt", "w");
+	auto cpuFile = fopen("results_cpu.txt", "w");
 	auto hybridFile = fopen("results_hybrid.txt", "w");
 
 	if (gpuFile == NULL || hybridFile == NULL) {
@@ -15,15 +17,20 @@ int main(int argc, char** argv) {
 	}
 
 	fprintf(gpuFile, "Testcase DataSize Time\n");
+	fprintf(cpuFile, "Testcase DataSize Time\n");
 	fprintf(hybridFile, "Testcase DataSize WorkGroupSize GpuWorkGroups NumThreads Time\n");
 
 	fclose(gpuFile);
+	fclose(cpuFile);
 	fclose(hybridFile);
 
 	if (argc > 1) {
 		auto param = argv[1];
 		if (strcmp(param, "-t") == 0) {
 			Config::tunningMode = true;
+		}
+		if (strcmp(param, "-q") == 0) {
+			Config::theoryMode = true;
 		}
 	}
 
