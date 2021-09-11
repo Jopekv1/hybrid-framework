@@ -307,7 +307,7 @@ public:
 TEST_P(CollatzCpuFixture, theoryCpu) {
 	CollatzKernel kernel(dataSize);
 
-	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);
+	LoadBalancer balancer(uint64_t(dataSize / 1024), 1, 8);
 	balancer.forceDeviceCount(0);
 
 	auto start = std::chrono::steady_clock::now();
