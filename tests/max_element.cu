@@ -157,10 +157,6 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			GTEST_SKIP();
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -278,7 +274,7 @@ public:
 	uint64_t dataSize = 0;
 };
 
-TEST_F(MaxElementCpuFixture, theoryCpu) {
+TEST_P(MaxElementCpuFixture, theoryCpu) {
 	MaxElementKernel kernel(dataSize);
 
 	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);

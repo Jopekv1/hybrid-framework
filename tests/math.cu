@@ -156,10 +156,6 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			GTEST_SKIP();
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -269,7 +265,7 @@ public:
 	uint64_t dataSize = 0;
 };
 
-TEST_F(MathCpuFixture, theoryCpu) {
+TEST_P(MathCpuFixture, theoryCpu) {
 	MathKernel kernel(dataSize);
 
 	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);

@@ -191,10 +191,6 @@ public:
 				GTEST_SKIP();
 			}
 		}
-
-		if (Config::theoryMode) {
-			GTEST_SKIP();
-		}
 	}
 
 	uint64_t dataSize = 0;
@@ -308,7 +304,7 @@ public:
 	uint64_t dataSize = 0;
 };
 
-TEST_F(CollatzCpuFixture, theoryCpu) {
+TEST_P(CollatzCpuFixture, theoryCpu) {
 	CollatzKernel kernel(dataSize);
 
 	LoadBalancer balancer(uint64_t(dataSize / 8), 1, 8);
